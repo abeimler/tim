@@ -154,8 +154,22 @@ class Tim(object):
 
         return data['config']['autostart']
 
-    def status(self):
-        if (not self.ensure_working()):
+    def current_work(self):
+        if (not self.is_working()):
+            return ""
+        # except SystemExit(1):
+        #     return
+
+        data = self.store.load()
+        current = data['work'][-1]
+
+        #start_time = self.parse_isotime(current['start'])
+        #diff = self.timegap(start_time, datetime.utcnow())
+
+        return current['name']
+
+    def get_status(self):
+        if (not self.is_working()):
             return "", None
         # except SystemExit(1):
         #     return
@@ -166,10 +180,83 @@ class Tim(object):
         start_time = self.parse_isotime(current['start'])
         diff = self.timegap(start_time, datetime.utcnow())
 
-        print('You have been working on {0} for {1}.'
-                .format(self.tclr.green(current['name']), diff))
-
         return current['name'], diff
+
+    def diff(self, name):
+        data = self.store.load()
+        works_by_name = list(filter(lambda d: d['name'] == name, data['work']))
+
+        if len(works_by_name) > 0:
+            current = works_by_name[-1]
+
+            start_time = self.parse_isotime(current['start'])
+            end_time = self.parse_isotime(current['end']) if 'end' in current else datetime.utcnow()
+            diff = end_time - start_time
+
+            return diff
+
+        return timedelta()
+
+    def total_time(self, name):
+        data = self.store.load()
+        works_by_name = filter(lambda d: d['name'] == name, data['work'])
+
+        total_seconds = 0
+        for work in works_by_name:
+            if work['start']:
+                start_time = self.parse_isotime(work['start'])
+                end_time = self.parse_isotime(work['end']) if 'end' in work else datetime.utcnow()
+                diff = end_time - start_time
+
+                total_seconds = total_seconds + diff.seconds
+
+        delta = timedelta(seconds=total_seconds)
+        return delta
+    
+    def total_time_str(self, name):
+        data = self.store.load()
+        works_by_name = filter(lambda d: d['name'] == name, data['work'])
+
+        total_seconds = 0
+        for work in works_by_name:
+            if work['start']:
+                start_time = self.parse_isotime(work['start'])
+                end_time = self.parse_isotime(work['end']) if 'end' in work else datetime.utcnow()
+                diff = end_time - start_time
+
+                total_seconds = total_seconds + diff.seconds
+
+        delta = timedelta(seconds=total_seconds)
+        mins = math.floor(total_seconds / 60)
+        hours = math.floor(mins/60)
+        rem_mins = mins - hours * 60
+
+        if mins == 0:
+            return 'under 1 minute'
+        elif mins < 59:
+            return self.strfdelta(delta, "{minutes} minutes")
+        elif mins < 1439:
+            return self.strfdelta(delta, "{hours} hours and {minutes} minutes")
+        else:
+            return self.strfdelta(delta, " {hours} ({days} days)")
+
+    def strfdelta(self, tdelta, fmt):
+        d = {"days": tdelta.days}
+        d["hours"], rem = divmod(tdelta.seconds, 3600)
+        d["minutes"], d["seconds"] = divmod(rem, 60)
+        return fmt.format(**d)
+
+
+
+    def status(self):
+        name, diff = self.get_status()
+        if not name:
+            return ""
+
+        print('You have been working on {0} for {1}.'
+                .format(self.tclr.green(name), diff))
+
+        return name, diff
 
 
     def hledger(self, param):
@@ -244,6 +331,16 @@ class Tim(object):
 
         return ''
 
+
+    def is_working(self):
+        data = self.store.load()
+        work_data = data.get('work') 
+        is_working = work_data and 'end' not in data['work'][-1]
+        if is_working:
+            return True
+
+        return False
+
     def ensure_working(self):
         data = self.store.load()
         work_data = data.get('work') 
@@ -287,7 +384,7 @@ class Tim(object):
         
 
     def parse_isotime(self, isotime):
-        return datetime.strptime(isotime, self.date_format )
+        return datetime.strptime(isotime, self.date_format)
 
 
     def timegap(self, start_time, end_time):
