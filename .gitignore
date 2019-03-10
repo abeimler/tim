@@ -44,8 +44,9 @@ local.properties
 .texlipse
 
 
-# Created by https://www.gitignore.io/api/qt,osx,macos,linux,python,windows,qtcreator
-# Edit at https://www.gitignore.io/?templates=qt,osx,macos,linux,python,windows,qtcreator
+
+# Created by https://www.gitignore.io/api/qt,osx,macos,linux,python,windows,qtcreator,visualstudiocode
+# Edit at https://www.gitignore.io/?templates=qt,osx,macos,linux,python,windows,qtcreator,visualstudiocode
 
 ### Linux ###
 *~
@@ -299,6 +300,17 @@ compile_commands.json
 
 # Qt Creator backups
 
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+.history
+
 ### Windows ###
 # Windows thumbnail cache files
 Thumbs.db
@@ -324,4 +336,5 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# End of https://www.gitignore.io/api/qt,osx,macos,linux,python,windows,qtcreator
+# End of https://www.gitignore.io/api/qt,osx,macos,linux,python,windows,qtcreator,visualstudiocode
+
