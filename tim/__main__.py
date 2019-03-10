@@ -35,10 +35,11 @@ class MainForm(QMainWindow,Ui_MainWindow):
     def init(self):
         self.chbAutoStart.setChecked(self.tim.get_config_autostart())
 
-        self.cmbType.addItem('Commission', 'comission')
-        self.cmbType.addItem('Request', 'request')
-        self.cmbType.addItem('ArtTrade', 'arttrade')
-        self.cmbType.addItem('Private', 'private')
+        self.cmbType.addItem('Commission', 'artwork:comission')
+        self.cmbType.addItem('Request', 'artwork:request')
+        self.cmbType.addItem('ArtTrade', 'artwork:arttrade')
+        self.cmbType.addItem('Private', 'artwork:private')
+        self.cmbType.addItem('Work', 'work')
 
         self.currentTimName = self.tim.current_work()
 
@@ -71,17 +72,21 @@ class MainForm(QMainWindow,Ui_MainWindow):
         self.cmbType.activated.connect(self.changeArt)
         self.btnStartStop.clicked.connect(self.clickedStartStop)
         self.btnBreak.clicked.connect(self.clickedBreak)
-
-    def updateUI(self):
-        self.cmbType.setEnabled(self.isNotWorking() and self.currentProjectName != "")
-        self.txtProject.setEnabled(self.isNotWorking())
-        self.btnBreak.setEnabled(self.isWorking() and not self.isBreak())
-        self.btnStartStop.setEnabled(self.isWorking() or self.isBreak() or ((self.isNotWorking() or self.isBreak()) and self.currentProjectName != ""))
+    
+    def updateUIButtons(self):
+        self.btnBreak.setEnabled(self.isWorking() and not self.isBreak() and self.valid_time())
+        self.btnStartStop.setEnabled(self.isWorking() or self.isBreak() or ((self.isNotWorking() or self.isBreak()) and self.currentProjectName != "") and self.valid_time())
 
         if self.isWorking():
             self.btnStartStop.setText("Stop")
         else:
             self.btnStartStop.setText("Start")
+
+    def updateUI(self):
+        self.cmbType.setEnabled(self.isNotWorking() and self.currentProjectName != "")
+        self.txtProject.setEnabled(self.isNotWorking())
+
+        self.updateUIButtons()
         
         if self.currentTimName != self.timBreakName() and self.currentProjectName:
             diff = self.tim.diff(self.currentTimName)
@@ -99,13 +104,15 @@ class MainForm(QMainWindow,Ui_MainWindow):
 
 
     def clickedStartStop(self):
-        self.currentTimName = self.timName()
-        self.startStopWorkToggle()
+        if self.valid_time():
+            self.currentTimName = self.timName()
+            self.startStopWorkToggle()
         
 
     def clickedBreak(self):
-        self.currentTimName = self.timBreakName()
-        self.startStopWorkToggle()
+        if self.valid_time():
+            self.currentTimName = self.timBreakName()
+            self.startStopWorkToggle()
     
 
     def changeProjectName(self, str):
@@ -117,13 +124,13 @@ class MainForm(QMainWindow,Ui_MainWindow):
         else:
             self.cmbType.setEnabled(False)
 
-        self.btnStartStop.setEnabled(self.currentProjectName != "")
+        self.updateUIButtons()
 
 
     def changeArt(self,index):
         self.currentType = self.cmbType.itemData(index).lower()
         self.currentTimName = self.timName()
-        self.btnStartStop.setEnabled(self.currentType != "")
+        self.updateUIButtons()
 
     def changeChbAutoStart(self, state):
         if state == QtCore.Qt.Checked:
@@ -135,8 +142,7 @@ class MainForm(QMainWindow,Ui_MainWindow):
         if self.currentProjectName == "":
             return ''
 
-        prefix = 'artwork'
-        return prefix + ":" + self.currentType + ":" + self.currentProjectName
+        return self.currentType + ":" + self.currentProjectName
     
     def timBreakName(self):
         return 'break'
@@ -167,19 +173,23 @@ class MainForm(QMainWindow,Ui_MainWindow):
             self.txtAddTime.clear()
 
         self.updateWork()
+    
+    def valid_time(self):
+        time = self.tim.parse_isotime(self.tim.to_datetime(self.txtAddTime.text().lower()))
+        current_time = self.tim.current_work_start_time()
+        return current_time is None or time >= current_time
 
     def startWork(self):
-        print(self.currentTimName)
-        print(self.isWorking())
-        print(self.isNotWorking())
-        print(self.isBreak())
         time = self.tim.to_datetime(self.txtAddTime.text().lower())
 
         if self.currentTimName:
             if self.isNotWorking() and not self.isBreak():
                 self.tim.begin(self.currentTimName, time)
             elif self.isBreak():
-                self.tim.switch(self.currentTimName, time)
+                time_datetime = self.tim.parse_isotime(time)
+                current_time = self.tim.current_work_start_time()
+                if time_datetime >= current_time:
+                    self.tim.switch(self.currentTimName, time)
 
         self.txtAddTime.clear()
 
@@ -190,7 +200,11 @@ class MainForm(QMainWindow,Ui_MainWindow):
 
         if self.currentTimName:
             if self.isWorking() or self.isBreak():
-                self.tim.end(time)
+                time_datetime = self.tim.parse_isotime(time)
+                current_time = self.tim.current_work_start_time()
+                if time_datetime >= current_time:
+                    self.tim.end(time)
+                self.currentTimName = ""
 
         self.txtAddTime.clear()
 

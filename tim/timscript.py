@@ -168,6 +168,17 @@ class Tim(object):
 
         return current['name']
 
+    def current_work_start_time(self):
+        if (not self.is_working()):
+            return None
+        # except SystemExit(1):
+        #     return
+
+        data = self.store.load()
+        current = data['work'][-1]
+
+        return self.parse_isotime(current['start'])
+
     def get_status(self):
         if (not self.is_working()):
             return "", None
