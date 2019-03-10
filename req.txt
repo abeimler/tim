@@ -1,7 +1,9 @@
-argparse==1.2.1
-colorama==0.3.3
-cram==0.6
-parsedatetime==1.5
-pytz==2015.4
-tzlocal==1.2
+argparse==1.4.0
+colorama==0.4.1
+cram==0.7
+parsedatetime==2.4
+pytz==2018.9
+tzlocal==1.5.1
 pyyaml
+duration==1.1.1
+PyQt5
