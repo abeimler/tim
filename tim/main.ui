@@ -40,26 +40,15 @@
     <item row="4" column="0">
      <widget class="QLabel" name="lblEstimate">
       <property name="text">
-       <string>Estemate</string>
+       <string>Estimate</string>
       </property>
      </widget>
     </item>
     <item row="4" column="2">
-     <widget class="QComboBox" name="cmbEstimateUnit">
-      <item>
-       <property name="text">
-        <string>Minutes</string>
-       </property>
-      </item>
-      <item>
-       <property name="text">
-        <string>Hours</string>
-       </property>
-      </item>
-     </widget>
+     <widget class="QComboBox" name="cmbEstimateUnit"/>
     </item>
     <item row="4" column="1">
-     <widget class="QSpinBox" name="lblEstimateValue"/>
+     <widget class="QSpinBox" name="spbEstimateValue"/>
     </item>
     <item row="2" column="0">
      <widget class="QLineEdit" name="txtAddTime">

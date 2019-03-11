@@ -41,6 +41,9 @@ class MainForm(QMainWindow,Ui_MainWindow):
         self.cmbType.addItem('Private', 'artwork:private')
         self.cmbType.addItem('Work', 'work')
 
+        self.cmbEstimateUnit.addItem('Hours', 'hours')
+        self.cmbEstimateUnit.addItem('Minute', 'minutes')
+
         self.currentTimName = self.tim.current_work()
 
         if self.currentTimName == "":
@@ -62,16 +65,20 @@ class MainForm(QMainWindow,Ui_MainWindow):
 
         self.currentProjectName = self.txtProject.text().lower()
         self.currentType = self.cmbType.currentData().lower()
+        self.currentEstimateUnit = self.cmbEstimateUnit.itemData(0)
+        self.currentEstimate = 0
 
         self.updateUI()
 
 
     def initSignals(self):
-        self.chbAutoStart.stateChanged.connect(self.changeChbAutoStart)
+        self.chbAutoStart.stateChanged.connect(self.changeAutoStart)
         self.txtProject.textChanged.connect(self.changeProjectName)
-        self.cmbType.activated.connect(self.changeArt)
+        self.cmbType.activated.connect(self.changeType)
         self.btnStartStop.clicked.connect(self.clickedStartStop)
         self.btnBreak.clicked.connect(self.clickedBreak)
+        self.cmbEstimateUnit.activated.connect(self.changeEstimateUnit)
+        self.spbEstimateValue.valueChanged.connect(self.changeEstimate)
     
     def updateUIButtons(self):
         self.btnBreak.setEnabled(self.isWorking() and not self.isBreak() and self.valid_time())
@@ -126,17 +133,41 @@ class MainForm(QMainWindow,Ui_MainWindow):
 
         self.updateUIButtons()
 
-
-    def changeArt(self,index):
+    def changeType(self,index):
         self.currentType = self.cmbType.itemData(index).lower()
         self.currentTimName = self.timName()
         self.updateUIButtons()
 
-    def changeChbAutoStart(self, state):
+    def changeAutoStart(self, state):
         if state == QtCore.Qt.Checked:
             self.tim.set_config_autostart(True)
         else:
             self.tim.set_config_autostart(False)
+
+    
+    def changeEstimateUnit(self,index):
+        self.currentEstimateUnit = self.cmbEstimateUnit.itemData(index)
+        self.updateEstimate()
+        
+
+    def changeEstimate(self, value):
+        self.currentEstimate = value
+        self.updateEstimate()
+
+    def updateEstimate(self):
+        name = self.timName()
+        if name:
+            hours = 0
+            minutes = 0
+            seconds = 0
+
+            if self.currentEstimateUnit == "hours":
+                hours = self.currentEstimate
+            elif self.currentEstimateUnit == "minutes":
+                minutes = self.currentEstimate
+                
+            estimate = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
+            self.tim.set_estimate(name, estimate)
 
     def timName(self):
         if self.currentProjectName == "":
