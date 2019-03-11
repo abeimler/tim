@@ -2,7 +2,7 @@ import sys
 import os
 import subprocess
 
-from timscript import tim
+from .timscript import Tim
 
 
 def helpful_exit(msg=__doc__):
