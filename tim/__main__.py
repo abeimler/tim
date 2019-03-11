@@ -6,6 +6,8 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow
 from PyQt5 import  uic
 
+from datetime import datetime, timedelta, date
+
 from timscript import Tim
 
 title = "Timmy"
@@ -155,19 +157,28 @@ class MainForm(QMainWindow,Ui_MainWindow):
         self.updateEstimate()
 
     def updateEstimate(self):
+        hours = 0
+        minutes = 0
+        seconds = 0
+
+        if self.currentEstimateUnit == "hours":
+            hours = self.currentEstimate
+        elif self.currentEstimateUnit == "minutes":
+            minutes = self.currentEstimate
+        
         name = self.timName()
         if name:
-            hours = 0
-            minutes = 0
-            seconds = 0
-
-            if self.currentEstimateUnit == "hours":
-                hours = self.currentEstimate
-            elif self.currentEstimateUnit == "minutes":
-                minutes = self.currentEstimate
-                
             estimate = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
             self.tim.set_estimate(name, estimate)
+
+        dt_estimate = timedelta(hours=hours, minutes=minutes, seconds=seconds)
+        dt_time = self.tim.total_time(name)
+
+        print(dt_time.total_seconds())
+        print(dt_estimate.total_seconds())
+
+        self.pgbProgress.setMaximum(dt_estimate.total_seconds())
+        self.pgbProgress.setValue(dt_time.total_seconds())
 
     def timName(self):
         if self.currentProjectName == "":
