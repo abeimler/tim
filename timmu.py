@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 import sys
-import os
-import subprocess
-
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow
+from PyQt5.QtWidgets import QApplication
 
 from timmu.mainform import MainForm
 

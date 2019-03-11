@@ -1,10 +1,5 @@
-import sys
-import os
-import subprocess
-
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow
-from PyQt5 import  uic
+from PyQt5.QtWidgets import QMainWindow
 
 from datetime import datetime, timedelta, date
 
