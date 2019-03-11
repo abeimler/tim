@@ -8,8 +8,8 @@ from PyQt5 import  uic
 
 from datetime import datetime, timedelta, date
 
-from tim.timscript import Tim
-from ui_mainwindow import Ui_MainForm
+from .tim.timscript import Tim
+from .ui_mainwindow import Ui_MainForm
 
 class MainForm(QMainWindow,Ui_MainForm):    
     def __init__(self):     

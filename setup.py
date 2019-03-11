@@ -41,7 +41,7 @@ setup(
             'languages/*.qm',
         ],
     },
-    scripts=['timmu/timmu.py'],
+    scripts=['entry_point.py'],
     entry_points={
         'console_scripts': ['tim=timmu.tim.__main__:main'],
         'gui_scripts': [

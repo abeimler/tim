@@ -8,7 +8,7 @@ import subprocess
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow
 
-from mainform import MainForm
+from timmu.mainform import MainForm
 
 app = QApplication(sys.argv)
 w = MainForm()
