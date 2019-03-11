@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Form</class>
- <widget class="QWidget" name="Form">
+ <class>MainForm</class>
+ <widget class="QWidget" name="MainForm">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>446</width>
-    <height>207</height>
+    <height>227</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>Timmu</string>
   </property>
   <widget class="QWidget" name="gridLayoutWidget">
    <property name="geometry">
@@ -19,7 +19,7 @@
      <x>8</x>
      <y>10</y>
      <width>431</width>
-     <height>191</height>
+     <height>210</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout">

@@ -7,3 +7,4 @@ tzlocal==1.5.1
 pyyaml
 duration==1.1.1
 PyQt5
+Qt.py

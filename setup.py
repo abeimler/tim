@@ -2,7 +2,7 @@
 import os
 from setuptools import setup, find_packages
 from setup_qt import build_qt
-from tim import __version__
+from timmu import __version__
 
 #PyPI guide: https://hynek.me/articles/sharing-your-labor-of-love-pypi-quick-and-dirty/
 def read(*paths):
@@ -11,7 +11,7 @@ def read(*paths):
         return f.read()
 
 setup(
-    name='tim-qt',
+    name='timmu',
     version = __version__,
     description="GUI for tim (command line time logger with hledger backend for number crunching)",
     long_description=(read('README.md') + "\n\n" + 
@@ -29,12 +29,12 @@ setup(
         'tzlocal>=1.5.1',
         'pytz>=2018.9',
         'duration>=1.1.1',
-        'PyQt5>=5.12',
+        'PyQt5',
         'Qt.py'
     ],
-    packages = find_packages(),
+    packages=find_packages(exclude=['gif', 'site', 'test']),
     package_data={
-        'tim-qt': [
+        'timmu': [
             '*.ui',
             '*.qrc',
             'languages/*.ts',
@@ -42,18 +42,18 @@ setup(
         ],
     },
     entry_points={
-        'console_scripts': ['tim=tim.timscript:console_main'],
+        'console_scripts': ['tim=timmu.tim.__main__:main'],
         'gui_scripts': [
-            'tim-qt=tim.__main__:main',
+            'timmu=timmu.__main__:main',
         ],
     },
-    options=[
+    options={
         'build_qt': {
-            'packages': ['tim-qt'],
+            'packages': ['timmu'],
             'bindings': 'PyQt5',           # optional ('PyQt5' is default)
             'replacement_bindings': 'Qt',  # optional (for Qt.py wrapper usage)
         },
-    ],
+    },
     cmdclass={
         'build_qt': build_qt,
     },

@@ -8,19 +8,15 @@ from PyQt5 import  uic
 
 from datetime import datetime, timedelta, date
 
-from timscript import Tim
+from tim.timscript import Tim
 
-title = "Timmy"
-MainUI = os.path.dirname(os.path.realpath(__file__)) + "/main.ui" 
+from ui_mainwindow import Ui_MainForm
 
-Ui_MainWindow, QtBaseClass = uic.loadUiType(MainUI)
-class MainForm(QMainWindow,Ui_MainWindow):    
+class MainForm(QMainWindow,Ui_MainForm):    
     def __init__(self):     
         QMainWindow.__init__(self)
-        Ui_MainWindow.__init__(self)
+        Ui_MainForm.__init__(self)
         self.setupUi(self)
-
-        self.setWindowTitle(title)
 
         self.tim = Tim()
 
