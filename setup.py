@@ -57,9 +57,9 @@ setup(
     },
     scripts=['timmu.py'],
     entry_points={
-        'console_scripts': ['tim=timmu.tim.__main__:main'],
+        'console_scripts': ['tim=tim.py'],
         'gui_scripts': [
-            'timmu=timmu.__main__:main',
+            'timmu=timmu.py',
         ],
     },
     options={
