@@ -51,7 +51,7 @@ class JsonStore(object):
             data = { 
                 'work': [], 
                 'interrupt_stack': [], 
-                'estimate': {}, 
+                'infos': {}, 
                 'config': {
                     'autostart': False,
                     'prefix': '',
@@ -73,11 +73,21 @@ class Tim(object):
         self.date_format_hledger = '%Y/%m/%d %H:%M:%S'
         self.store = JsonStore()
 
+        self.WORK_KEY = 'work'
+        self.CONFIG_KEY = 'config'
+        self.INFOS_KEY = 'infos'
+
+        self.NAME_KEY = 'name'
+        self.START_KEY = 'start'
+        self.END_KEY = 'end'
+
         self.data = self.store.load()
-        if not 'config' in self.data:
-            self.data['config'] = {}
-        if not 'work' in self.data:
-            self.data['work'] = []
+        if not self.CONFIG_KEY in self.data:
+            self.data[self.CONFIG_KEY] = {}
+        if not self.WORK_KEY in self.data:
+            self.data[self.WORK_KEY] = []
+        if not self.INFOS_KEY in self.data:
+            self.data[self.INFOS_KEY] = {}
 
         self.data_map = self.gen_map(self.data)
     
@@ -110,7 +120,6 @@ class Tim(object):
     def printtime(self, time):
         print("You entered '" + time + "' as a test")
 
-
     def end(self, time, back_from_interrupt=True):
         if(not self.ensure_working()):
             return
@@ -131,59 +140,84 @@ class Tim(object):
         self.data_map = self.gen_map(self.data)
         print(json.dumps(self.data_map, indent=4, sort_keys=True, default=str))
 
-    def set_estimate(self, name, time):
+
+
+    def set_info_value(self, field, name, value):
         self.data = self.store.load()
 
-        if not self.data['estimate']:
-            self.data['estimate'] = {}
+        if not 'infos' in self.data:
+            self.data['infos'] = {}
 
-        self.data['estimate'][name] = time
+        if not name in self.data['infos']:
+            self.data['infos'][name] = {}
+
+        self.data['infos'][name][field] = value
+
+        self.store.dump(self.data)
+        self.data_map = self.gen_map(self.data)
+    
+    def get_info_value(self, field, name, default=None):
+        #self.data = self.store.load()
+
+        return self.data['infos'][name][field] if 'infos' in self.data and name in self.data['infos'] and field in self.data['infos'][name] else default
+
+    def get_infos(self, name):
+        #self.data = self.store.load()
+
+        return self.data['infos'][name] if 'infos' in self.data and name in self.data['infos'] else {}
+
+    def set_config_value(self, field, value):
+        self.data = self.store.load()
+
+        if not 'config' in self.data:
+            self.data['config'] = {}
+
+        if not field in self.data['config']:
+            self.data['config'][field] = {}
+
+        self.data['config'][field] = value
+
+        self.store.dump(self.data)
+    
+    def get_config_value(self, field, default=None):
+        #self.data = self.store.load()
+
+        return self.data['config'][field] if 'config' in self.data and field in self.data['config'] else default
+
+
+    def set_estimate(self, name, time):
+        self.set_info_value('estimate', name, time)
 
         print('Set estimate ' + self.tclr.green(name) + ' to ' + time)
-        self.store.dump(self.data)
     
     def get_estimate(self, name):
         #self.data = self.store.load()
-
-        return self.data['estimate'][name] if 'estimate' in self.data and name in self.data['estimate'] and name in self.data['estimate'] else ""
+        return self.get_info_value('estimate', name, '')
 
     def set_config_autostart(self, value):
-        self.data = self.store.load()
-
-        self.data['config']['autostart'] = value
-
-        self.store.dump(self.data)
+        self.set_config_value('autostart', value)
     
     def get_config_autostart(self):
-        #data = self.store.load()
+        return self.get_config_value('autostop', False)
 
-        return self.data['config']['autostart'] if 'config' in self.data and 'autostart' in self.data['config'] else False
-
+    def set_config_autostop(self, value):
+        self.set_config_value('autostop', value)
     
+    def get_config_autostop(self):
+        return self.get_config_value('autostop', False)
+
     def set_config_prefix(self, value):
-        self.data = self.store.load()
-
-        self.data['config']['prefix'] = value
-
-        self.store.dump(self.data)
+        self.set_config_value('prefix', value)
     
     def get_config_prefix(self):
-        #data = self.store.load()
-
-        return self.data['config']['prefix'] if 'config' in self.data and 'prefix' in self.data['config'] else ""
-
+        return self.get_config_value('prefix', '')
     
     def set_config_types(self, value):
-        self.data = self.store.load()
-
-        self.data['config']['types'] = value
-
-        self.store.dump(self.data)
+        self.set_config_value('types', value)
     
     def get_config_types(self):
-        #data = self.store.load()
-
-        return self.data['config']['types'] if 'config' in self.data and 'types' in self.data['config'] else []
+        return self.get_config_value('types', [])
+    
 
     def current_work(self):
         if (not self.is_working()):
@@ -269,18 +303,22 @@ class Tim(object):
                 total_seconds = total_seconds + diff.seconds
 
         delta = timedelta(seconds=total_seconds)
-        mins = math.floor(total_seconds / 60)
+        return self._delta_total_time_str(delta)
+
+    
+    def _delta_total_time_str(self, timedelta):
+        mins = math.floor(timedelta.total_seconds() / 60)
         hours = math.floor(mins/60)
         rem_mins = mins - hours * 60
 
         if mins == 0:
             return 'under 1 minute'
         elif mins < 59:
-            return self.strfdelta(delta, "{minutes} minutes")
+            return self.strfdelta(timedelta, "{minutes} minutes")
         elif mins < 1439:
-            return self.strfdelta(delta, "{hours} hours and {minutes} minutes")
+            return self.strfdelta(timedelta, "{hours} hours and {minutes} minutes")
         else:
-            return '{:02}:{:02} ({} days)'.format(int(hours), int(mins), delta.days)
+            return '{:02}:{:02} ({} days)'.format(int(hours), int(mins), timedelta.days)
 
     def strfdelta(self, tdelta, fmt):
         d = {"days": tdelta.days}
@@ -409,6 +447,9 @@ class Tim(object):
         print('See `ti -h` to know how to start working.', file=sys.stderr)
         return False
 
+    def get_data(self, name):
+        #self.data = self.store.load()
+        return self.data_map[name] if name in self.data_map else self._new_data_map()
 
     def to_datetime(self, timestr):
         dt = self.parse_engtime(timestr).strftime(self.date_format)
@@ -512,53 +553,57 @@ class Tim(object):
         total_seconds = 0
         for work in works:
             if 'start' in work and work['start']:
-                name = work['name']
+                work_name = work['name']
 
                 start_time = self.parse_isotime(work['start'])
                 end_time = self.parse_isotime(work['end']) if 'end' in work else datetime.now(timezone.utc)
                 diff = end_time - start_time
 
+                delta = timedelta(seconds=diff.seconds)
+                delta_str = self._delta_total_time_str(delta)
+
                 total_seconds = total_seconds + diff.seconds
-
-                delta = timedelta(seconds=total_seconds)
-                mins = math.floor(total_seconds / 60)
-                hours = math.floor(mins/60)
-                rem_mins = mins - hours * 60
-
-                if mins == 0:
-                    dura_str = 'under 1 minute'
-                elif mins < 59:
-                    dura_str = self.strfdelta(delta, "{minutes} minutes")
-                elif mins < 1439:
-                    dura_str = self.strfdelta(delta, "{hours} hours and {minutes} minutes")
-                else:
-                    dura_str = self.strfdelta(delta, " {hours} ({days} days)")
-
+                total_delta = timedelta(seconds=total_seconds)
+                total_delta_str = self._delta_total_time_str(total_delta)
 
                 nn = ""
-                for n in name.split(':'):
+                for n in work_name.split(':'):
                     nn = nn + ":" + n if nn != "" else n
 
                     if nn:
                         if not nn in ret:
-                            ret[nn] = {}
-                            ret[nn]['work'] = []
-                            ret[nn]['delta'] = timedelta(0)
-                            ret[nn]['total_seconds'] = 0
+                            ret[nn] = self._new_data_map()
 
                         entry = { 
                             'start': start_time,
                             'end': end_time,
-                            'diff': diff, 
-                            'dura_str': dura_str 
+                            'delta': delta, 
+                            'delta_str': delta_str 
                         }    
                         
                         ret[nn]['name'] = nn
                         ret[nn]['estimate'] = self.get_estimate(nn)
-                        ret[nn]['realentry'] = nn == name
+                        ret[nn]['infos'] = self.get_infos(nn)
+                        ret[nn]['realentry'] = nn == work_name
                         
                         ret[nn]['work'].append(entry)
                         ret[nn]['delta'] = ret[nn]['delta'] + delta
+                        ret[nn]['delta_str'] = self._delta_total_time_str(ret[nn]['delta'])
                         ret[nn]['total_seconds'] = ret[nn]['total_seconds'] + total_seconds
+                        ret[nn]['count'] = len(ret[nn]['work'])
 
+        return ret
+
+    
+    def _new_data_map(self):
+        ret = {}
+        ret['name'] = ''
+        ret['estimate'] = '00:00:00'
+        ret['infos'] = {}
+        ret['realentry'] = False
+        ret['work'] = []
+        ret['delta'] = timedelta(0)
+        ret['delta_str'] = self._delta_total_time_str(ret['delta'])
+        ret['total_seconds'] = 0
+        ret['count'] = 0
         return ret

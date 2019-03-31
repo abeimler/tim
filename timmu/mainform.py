@@ -31,6 +31,7 @@ class MainForm(QMainWindow,Ui_MainForm):
 
     def init(self):
         self.chbAutoStart.setChecked(self.tim.get_config_autostart())
+        #self.chbAutoStop.setChecked(self.tim.get_config_autostop())
         
         self.prefix = self.tim.get_config_prefix().lower()
         if self.prefix == "":
@@ -135,14 +136,21 @@ class MainForm(QMainWindow,Ui_MainForm):
 
         self.updateUIButtons()
         
+        self.updateStatusText()
+        self.updateStatusNameText()
+
+        self.updateEstimateProgress()
+
+    def updateStatusText(self):
         if self.currentTimName:
             if self.currentTimName != self.timBreakName() and self.currentProjectName:
                 self.lblStatus.setText(self.getStatusText(self.currentTimName))
         elif self.lastTimName:
             self.lblStatus.setText(self.getStatusText(self.lastTimName))
 
+    def updateStatusNameText(self):
         self.lblStatusName.setText(self.getStatusText(self.timName()))
-
+        self.lblStatusName2.setText(self.getStatusText2(self.timName()))
 
     def updateWork(self):
         self.currentProjectName = self.txtProject.currentText().lower()
@@ -197,6 +205,7 @@ class MainForm(QMainWindow,Ui_MainForm):
         self.updateUIButtons()
         
         self.lblStatusName.setText(self.getStatusText(self.timName()))
+        self.updateStatusNameText()
         self.updateEstimate()
 
     def editProjectNamePressEnter(self):
@@ -301,48 +310,91 @@ class MainForm(QMainWindow,Ui_MainForm):
                     elif self.currentEstimateUnit == "minutes":
                         self.currentEstimate = minutes
 
-                    self.spbEstimateValue.setValue(self.currentEstimate)
+                    if self.currentEstimate != 0:
+                        self.spbEstimateValue.setValue(self.currentEstimate)
 
-                    dt_estimate = timedelta(hours=hours, minutes=minutes, seconds=seconds)
-                    dt_time = self.tim.total_time(name)
+                        dt_estimate = timedelta(hours=hours, minutes=minutes, seconds=seconds)
+                        dt_time = self.tim.total_time(name)
 
-                    if dt_time.total_seconds() > dt_estimate.total_seconds():
-                        self.pgbProgress.setMaximum(dt_estimate.total_seconds())
-                        self.pgbProgress.setValue(dt_time.total_seconds())
-                    else:
-                        self.pgbProgress.setMaximum(dt_estimate.total_seconds())
-                        self.pgbProgress.setValue(dt_time.total_seconds())   
+                        if dt_time.total_seconds() > dt_estimate.total_seconds():
+                            self.pgbProgress.setMaximum(dt_estimate.total_seconds())
+                            self.pgbProgress.setValue(dt_time.total_seconds())
+                        else:
+                            self.pgbProgress.setMaximum(dt_estimate.total_seconds())
+                            self.pgbProgress.setValue(dt_time.total_seconds())   
             else:
                 self.currentEstimate = 0
                 self.spbEstimateValue.setValue(self.currentEstimate)
+                self.pgbProgress.setMaximum(100)
+
+
+    def updateEstimateProgress(self):
+        name = self.timName()
+        if name != "" and self.currentEstimate > 0:
+            estimate_str = "00:00:00"
+            if self.currentEstimateUnit == "hours":
+                estimate_str = '{:02}:{:02}:{:02}'.format(int(self.currentEstimate), int(0), int(0))
+            elif self.currentEstimateUnit == "minutes":
+                estimate_str = '{:02}:{:02}:{:02}'.format(int(0), int(self.currentEstimate), int(0))
+
+            if estimate_str:
+                estimate = estimate_str.split(':')
+                if len(estimate) >= 2:
+                    hours = int(estimate[0])
+                    minutes = int(estimate[1])
+                    seconds = int(estimate[2]) if len(estimate) >= 3 else 0
+
+                    if self.currentEstimate != 0:
+                        dt_estimate = timedelta(hours=hours, minutes=minutes, seconds=seconds)
+                        dt_time = self.tim.total_time(name)
+
+                        if dt_time.total_seconds() > dt_estimate.total_seconds():
+                            self.pgbProgress.setMaximum(dt_estimate.total_seconds())
+                            self.pgbProgress.setValue(dt_time.total_seconds())
+                            return
+                        else:
+                            self.pgbProgress.setMaximum(dt_estimate.total_seconds())
+                            self.pgbProgress.setValue(dt_time.total_seconds())   
+                            return
+
+        self.pgbProgress.setValue(0)   
+        self.pgbProgress.setMaximum(100)
 
     def saveEstimate(self):
-        hours = 0
-        minutes = 0
-        seconds = 0
+        if self.currentEstimate != 0:
+            hours = 0
+            minutes = 0
+            seconds = 0
 
-        if self.currentEstimateUnit == "hours":
-            hours = self.currentEstimate
-        elif self.currentEstimateUnit == "minutes":
-            minutes = self.currentEstimate
-        
-        name = self.timName()
-        if name:
-            estimate = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
-            self.tim.set_estimate(name, estimate)
+            if self.currentEstimateUnit == "hours":
+                hours = self.currentEstimate
+            elif self.currentEstimateUnit == "minutes":
+                minutes = self.currentEstimate
+            
+            name = self.timName()
+            if name:
+                estimate = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
+                if self.tim.get_estimate(name) != estimate:
+                    self.tim.set_estimate(name, estimate)
 
-            self.updateEstimate()
+                self.updateEstimate()
 
     def getStatusText(self, name):
-        diff = self.tim.diff(name)
-        hours, remainder = divmod(diff.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        diff_str = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
-        total_time_str = self.tim.total_time_str(name)
+        data = self.tim.get_data(name)
+
+        diff_str = str(data['delta'])
+        total_time_str = data['delta_str']
+
         return "{0} ({1})".format(diff_str, total_time_str)
+
+    def getStatusText2(self, name):
+        data = self.tim.get_data(name)
+
+        return "Entries Count: {0}".format(data['count'])
     
     def updateProjectNameSearch(self, pname):
         names = self.searchProjectNames(pname)
+        names.add(pname)
         
         self.txtProject.clear()
         for name in names:
