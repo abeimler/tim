@@ -1,9 +1,7 @@
 argparse==1.4.0
 colorama==0.4.1
 cram==0.7
-parsedatetime==2.4
-pytz==2018.9
-tzlocal==1.5.1
+python-dateutil==2.8.0
 pyyaml
 duration==1.1.1
 PyQt5

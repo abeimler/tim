@@ -5,35 +5,24 @@ import sys
 import os
 import subprocess
 
-from datetime import datetime, timedelta, date
-from collections import defaultdict
+from datetime import datetime, timedelta, date, timezone
+from dateutil import parser
+from dateutil.relativedelta import relativedelta
 import math
 
-try:
-    import ConfigParser
-except:
-    import configparser
-
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+import configparser
+from io import StringIO
 
 import shutil
-import json, yaml
+import json
 
-import pytz
-import parsedatetime
-# http://stackoverflow.com/questions/13218506/how-to-get-system-timezone-setting-and-pass-it-to-pytz-timezone
-from tzlocal import get_localzone # $ pip install tzlocal
-local_tz = get_localzone()
 
-from duration import (
-    to_iso8601,
-    to_seconds,
-    to_timedelta,
-    to_tuple,
-)
+#from duration import (
+#    to_iso8601,
+#    to_seconds,
+#    to_timedelta,
+#    to_tuple,
+#)
 from .coloring import TimColorer
 
 # use_color = True
@@ -79,7 +68,16 @@ class Tim(object):
     def __init__(self):
         self.tclr = TimColorer(use_color=True)
         self.date_format = '%Y-%m-%dT%H:%M:%SZ'
+        self.date_format_hledger = '%Y/%m-/%d %H:%M:%S'
         self.store = JsonStore()
+
+        self.data = self.store.load()
+        if not 'config' in self.data:
+            self.data['config'] = {}
+        if not 'work' in self.data:
+            self.data['work'] = []
+
+        self.data_map = self.gen_map(self.data)
     
     
 
@@ -88,8 +86,8 @@ class Tim(object):
         self.begin(name, time)
 
     def begin(self, name, time):
-        data = self.store.load()
-        work = data['work']
+        self.data = self.store.load()
+        work = self.data['work']
 
         if work and 'end' not in work[-1]:
             print('You are already working on ' + self.tclr.yellow(work[-1]['name']) +
@@ -102,7 +100,7 @@ class Tim(object):
         }
 
         work.append(entry)
-        self.store.dump(data)
+        self.store.dump(self.data)
 
         print('Start working on ' + self.tclr.green(name) + ' at ' + time + '.')
 
@@ -115,41 +113,49 @@ class Tim(object):
         if(not self.ensure_working()):
             return
 
-        data = self.store.load()
+        self.data = self.store.load()
 
-        current = data['work'][-1]
+        current = self.data['work'][-1]
         current['end'] = time
 
         start_time = self.parse_isotime(current['start'])
         # print(type(start_time), type(time))
         diff = self.timegap(start_time, self.parse_isotime(time))
         print('You stopped working on ' + self.tclr.red(current['name']) + ' at ' + time + ' (total: ' + self.tclr.bold(diff) + ').')
-        self.store.dump(data)
+
+        self.store.dump(self.data)
+
+        self.hledger_save(self.data)
+        self.data_map = self.gen_map(self.data)
+        print(json.dumps(self.data_map, indent=4, sort_keys=True, default=str))
 
     def set_estimate(self, name, time):
-        data = self.store.load()
+        self.data = self.store.load()
 
-        data['estimate'][name] = time
+        if not self.data['estimate']:
+            self.data['estimate'] = {}
+
+        self.data['estimate'][name] = time
 
         print('Set estimate ' + self.tclr.green(name) + ' to ' + time)
-        self.store.dump(data)
+        self.store.dump(self.data)
     
     def get_estimate(self, name):
-        data = self.store.load()
+        #self.data = self.store.load()
 
-        return data['estimate'][name] if data['estimate'][name] else ""
+        return self.data['estimate'] if 'estimate' in self.data and name in self.data['estimate'] else ""
 
     def set_config_autostart(self, value):
-        data = self.store.load()
+        self.data = self.store.load()
 
-        data['config']['autostart'] = value
+        self.data['config']['autostart'] = value
 
         self.store.dump(data)
     
     def get_config_autostart(self):
-        data = self.store.load()
+        #data = self.store.load()
 
-        return data['config']['autostart']
+        return self.data['config']['autostart'] if 'config' in self.data and 'autostart' in self.data['config'] else False
 
     def current_work(self):
         if (not self.is_working()):
@@ -157,11 +163,11 @@ class Tim(object):
         # except SystemExit(1):
         #     return
 
-        data = self.store.load()
-        current = data['work'][-1]
+        #data = self.store.load()
+        current = self.data['work'][-1]
 
         #start_time = self.parse_isotime(current['start'])
-        #diff = self.timegap(start_time, datetime.utcnow())
+        #diff = self.timegap(start_time, datetime.now(timezone.utc))
 
         return current['name']
 
@@ -171,8 +177,8 @@ class Tim(object):
         # except SystemExit(1):
         #     return
 
-        data = self.store.load()
-        current = data['work'][-1]
+        #data = self.store.load()
+        current = self.data['work'][-1]
 
         return self.parse_isotime(current['start'])
 
@@ -182,23 +188,23 @@ class Tim(object):
         # except SystemExit(1):
         #     return
 
-        data = self.store.load()
-        current = data['work'][-1]
+        #data = self.store.load()
+        current = self.data['work'][-1]
 
         start_time = self.parse_isotime(current['start'])
-        diff = self.timegap(start_time, datetime.utcnow())
+        diff = self.timegap(start_time, datetime.now(timezone.utc))
 
         return current['name'], diff
 
     def diff(self, name):
-        data = self.store.load()
-        works_by_name = list(filter(lambda d: d['name'] == name, data['work']))
+        #data = self.store.load()
+        works_by_name = list(filter(lambda d: d['name'] == name, self.data['work']))
 
         if len(works_by_name) > 0:
             current = works_by_name[-1]
 
             start_time = self.parse_isotime(current['start'])
-            end_time = self.parse_isotime(current['end']) if 'end' in current else datetime.utcnow()
+            end_time = self.parse_isotime(current['end']) if 'end' in current else datetime.now(timezone.utc)
             diff = end_time - start_time
 
             return diff
@@ -206,14 +212,14 @@ class Tim(object):
         return timedelta()
 
     def total_time(self, name):
-        data = self.store.load()
-        works_by_name = filter(lambda d: d['name'] == name, data['work'])
+        #data = self.store.load()
+        works_by_name = filter(lambda d: d['name'] == name, self.data['work'])
 
         total_seconds = 0
         for work in works_by_name:
             if work['start']:
                 start_time = self.parse_isotime(work['start'])
-                end_time = self.parse_isotime(work['end']) if 'end' in work else datetime.utcnow()
+                end_time = self.parse_isotime(work['end']) if 'end' in work else datetime.now(timezone.utc)
                 diff = end_time - start_time
 
                 total_seconds = total_seconds + diff.seconds
@@ -222,14 +228,14 @@ class Tim(object):
         return delta
     
     def total_time_str(self, name):
-        data = self.store.load()
-        works_by_name = filter(lambda d: d['name'] == name, data['work'])
+        #data = self.store.load()
+        works_by_name = filter(lambda d: d['name'] == name, self.data['work'])
 
         total_seconds = 0
         for work in works_by_name:
-            if work['start']:
+            if 'start' in  work and work['start']:
                 start_time = self.parse_isotime(work['start'])
-                end_time = self.parse_isotime(work['end']) if 'end' in work else datetime.utcnow()
+                end_time = self.parse_isotime(work['end']) if 'end' in work else datetime.now(timezone.utc)
                 diff = end_time - start_time
 
                 total_seconds = total_seconds + diff.seconds
@@ -246,7 +252,7 @@ class Tim(object):
         elif mins < 1439:
             return self.strfdelta(delta, "{hours} hours and {minutes} minutes")
         else:
-            return self.strfdelta(delta, " {hours} ({days} days)")
+            return '{:02}:{:02} ({} days)'.format(int(hours), int(mins), delta.days)
 
     def strfdelta(self, tdelta, fmt):
         d = {"days": tdelta.days}
@@ -267,9 +273,7 @@ class Tim(object):
         return name, diff
 
 
-    def hledger(self, param):
-        # print("hledger param", param)
-        data = self.store.load()
+    def hledger_save(self, data):
         work = data['work']
 
         # hlfname = os.path.expanduser('~/.tim.hledger')
@@ -278,8 +282,8 @@ class Tim(object):
 
         for item in work:
             if 'end' in item:
-                str_on = "i %s %s" % (self.parse_isotime(item['start']), item['name'])
-                str_off = "o %s" % (self.parse_isotime(item['end']))
+                str_on = "i %s %s" % (self.parse_isotime_str_hledger(item['start']), item['name'])
+                str_off = "o %s" % (self.parse_isotime_str_hledger(item['end']))
                 # print(str_on + "\n" + str_off)
 
                 hlfile.write(str_on + "\n")
@@ -288,7 +292,14 @@ class Tim(object):
 
         hlfile.close()
 
-        cmd_list = ['hledger'] + ['-f'] + [hlfname] + param
+        return hlfname
+
+    def hledger(self, param):
+        # print("hledger param", param)
+        data = self.store.load()
+        hlfname = self.hledger_save(data)
+
+        cmd_list = ['hledger', '-f', hlfname].extend(param.split(' '))
         print("tim executes: " + " ".join(cmd_list))
         subprocess.call(cmd_list) 
 
@@ -326,9 +337,9 @@ class Tim(object):
     
 
     def last_work(self):
-        data = self.store.load()
-        work_data = data.get('work') 
-        is_working = work_data and 'end' not in data['work'][-1]
+        #data = self.store.load()
+        work_data = self.data.get('work')
+        is_working = work_data and not 'end' in work_data[-1]
         if is_working:
             return ''
 
@@ -341,18 +352,18 @@ class Tim(object):
 
 
     def is_working(self):
-        data = self.store.load()
-        work_data = data.get('work') 
-        is_working = work_data and 'end' not in data['work'][-1]
+        #data = self.store.load()
+        work_data = self.data.get('work')
+        is_working = work_data and not 'end' in work_data[-1]
         if is_working:
             return True
 
         return False
 
     def ensure_working(self):
-        data = self.store.load()
-        work_data = data.get('work') 
-        is_working = work_data and 'end' not in data['work'][-1]
+        #data = self.store.load()
+        work_data = self.data.get('work') 
+        is_working = work_data and not 'end' in work_data[-1]
         if is_working:
             return True
 
@@ -372,28 +383,78 @@ class Tim(object):
 
 
     def to_datetime(self, timestr):
-        #Z denotes zulu for UTC (https://tools.ietf.org/html/rfc3339#section-2)
-        # dt = parse_engtime(timestr).isoformat() + "Z" 
-        dt = self.parse_engtime(timestr).strftime(self.date_format)
+        dt = self.parse_engtime(timestr).isoformat()
         return dt
 
 
     def parse_engtime(self, timestr):
-    #http://stackoverflow.com/questions/4615250/python-convert-relative-date-string-to-absolute-date-stamp
-        cal = parsedatetime.Calendar()
-        if timestr is None or timestr is "":\
-            timestr = 'now'
+        if timestr is None or timestr is "":
+            return datetime.now(timezone.utc)
 
-        #example from here: https://github.com/bear/parsedatetime/pull/60
-        ret = cal.parseDT(timestr, tzinfo=local_tz)[0]
-        ret_utc = ret.astimezone(pytz.utc)
-        # ret = cal.parseDT(timestr, sourceTime=datetime.utcnow())[0]
-        return ret_utc
+        try:
+            LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
+            tzinfos={ "tzname": LOCAL_TIMEZONE }
+            dt = parser.parse(timestr, tzinfos=tzinfos)
+
+            dt = dt.astimezone(timezone.utc)
+
+            return dt
+        except ValueError:
+            timestr = self.get_past_date(timestr)
+            dt = parser.parse(timestr)
+
+            return dt
+
+        return datetime.now(timezone.utc)
         
+    def get_past_date(self, str_days_ago):
+        # https://stackoverflow.com/questions/12566152/python-x-days-ago-to-datetime
+        now = datetime.now(timezone.utc)
+
+        splitted = str_days_ago.split()
+        if len(splitted) == 1 and splitted[0].lower() == 'today':
+            return str(now.isoformat())
+        elif len(splitted) == 1 and splitted[0].lower() == 'yesterday':
+            date = now - relativedelta(days=1)
+            return str(date.isoformat())
+        elif len(splitted) == 3 and splitted[2].lower() in ['ago']:
+            if splitted[1].lower() in ['second', 'seconds', 'sec', 's']:
+                date = now - relativedelta(seconds=int(splitted[0]))
+                return str(date.isoformat())
+            elif splitted[1].lower() in ['minute', 'minutes', 'min', 'm']:
+                date = now - relativedelta(minutes=int(splitted[0]))
+                return str(date.isoformat())
+            elif splitted[1].lower() in ['hour', 'hours', 'hr', 'hrs', 'h']:
+                date = now - relativedelta(hours=int(splitted[0]))
+                return str(date.isoformat())
+            elif splitted[1].lower() in ['day', 'days', 'd']:
+                date = now - relativedelta(days=int(splitted[0]))
+                return str(date.isoformat())
+            elif splitted[1].lower() in ['wk', 'wks', 'week', 'weeks', 'w']:
+                date = now - relativedelta(weeks=int(splitted[0]))
+                return str(date.isoformat())
+            elif splitted[1].lower() in ['mon', 'mons', 'month', 'months', 'm']:
+                date = now - relativedelta(months=int(splitted[0]))
+                return str(date.isoformat())
+            elif splitted[1].lower() in ['yrs', 'yr', 'years', 'year', 'y']:
+                date = now - relativedelta(years=int(splitted[0]))
+                return str(date.isoformat())
+        
+        return str(now.isoformat())
 
     def parse_isotime(self, isotime):
-        return datetime.strptime(isotime, self.date_format)
+        LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
+        tzinfos={ "tzname": LOCAL_TIMEZONE }
+        dt = parser.parse(isotime, tzinfos=tzinfos)
 
+        dt = dt.astimezone(timezone.utc)
+        return dt
+
+    def parse_isotime_str(self, isotime):
+        return self.parse_isotime(isotime).strftime(self.date_format)
+
+    def parse_isotime_str_hledger(self, isotime):
+        return self.parse_isotime(isotime).strftime(self.date_format_hledger)
 
     def timegap(self, start_time, end_time):
         diff = end_time - start_time
@@ -411,3 +472,59 @@ class Tim(object):
         else:
             return "more than a day (%d hours)" % (hours)
    
+    def gen_map(self, data):
+        works = data['work']
+
+        ret = {}
+
+        total_seconds = 0
+        for work in works:
+            if work['start']:
+                name = work['name']
+
+                start_time = self.parse_isotime(work['start'])
+                end_time = self.parse_isotime(work['end']) if 'end' in work else datetime.now(timezone.utc)
+                diff = end_time - start_time
+
+                total_seconds = total_seconds + diff.seconds
+
+                delta = timedelta(seconds=total_seconds)
+                mins = math.floor(total_seconds / 60)
+                hours = math.floor(mins/60)
+                rem_mins = mins - hours * 60
+
+                if mins == 0:
+                    dura_str = 'under 1 minute'
+                elif mins < 59:
+                    dura_str = self.strfdelta(delta, "{minutes} minutes")
+                elif mins < 1439:
+                    dura_str = self.strfdelta(delta, "{hours} hours and {minutes} minutes")
+                else:
+                    dura_str = self.strfdelta(delta, " {hours} ({days} days)")
+
+
+                nn = ""
+                for n in name.split(':'):
+                    nn = nn + ":" + n if nn != "" else n
+
+                    if nn:
+                        if not nn in ret:
+                            ret[nn] = {}
+                            ret[nn]['work'] = []
+                            ret[nn]['delta'] = timedelta(0)
+                            ret[nn]['total_seconds'] = 0
+                            ret[nn]['name'] = nn
+
+                        entry = { 
+                            'start': start_time,
+                            'end': end_time,
+                            'diff': diff, 
+                            'dura_str': dura_str 
+                        }    
+                        
+                        ret[nn]['work'].append(entry)
+                        ret[nn]['delta'] = ret[nn]['delta'] + delta
+                        ret[nn]['name'] = nn
+                        ret[nn]['total_seconds'] = ret[nn]['total_seconds'] + total_seconds
+
+        return ret

@@ -28,8 +28,7 @@ setup(
     name='timmu',
     version = __version__,
     description="GUI for tim (command line time logger with hledger backend for number crunching)",
-    long_description=(read('README.md') + "\n\n" + 
-                      read("AUTHORS.md")),
+    long_description=(read('README.md') + "\n\n" + read("AUTHORS.md")),
     license="MIT",
     author="Alex Beimler",
     author_email="alex-beimler@web.de",
@@ -37,11 +36,9 @@ setup(
     platforms=["Any"],
     install_requires=[
         'argparse>=1.4.0',
-        'parsedatetime>=2.4',
+        'python-dateutil>=2.8',
         'colorama>=0.4.1',
         'pyyaml>=3.13',
-        'tzlocal>=1.5.1',
-        'pytz>=2018.9',
         'duration>=1.1.1',
         'PyQt5',
         'Qt.py'
@@ -65,8 +62,6 @@ setup(
     options={
         'build_qt': {
             'packages': ['timmu'],
-            'bindings': 'PyQt5',           # optional ('PyQt5' is default)
-            'replacement_bindings': 'Qt',  # optional (for Qt.py wrapper usage)
         },
         "build_exe": build_exe_options
     },

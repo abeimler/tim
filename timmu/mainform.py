@@ -35,11 +35,19 @@ class MainForm(QMainWindow,Ui_MainForm):
 
         self.cmbEstimateUnit.addItem('Hours', 'hours')
         self.cmbEstimateUnit.addItem('Minute', 'minutes')
+        
+        self.txtAddTime.addItem('')
+        self.txtAddTime.addItem('10 minutes ago')
+        self.txtAddTime.addItem('30 minutes ago')
+        self.txtAddTime.addItem('1 hour ago')
+        self.txtAddTime.addItem('2 hours ago')
+
 
         self.currentTimName = self.tim.current_work()
-
         if self.currentTimName == "":
             self.currentTimName = self.tim.last_work()
+
+        self.lastTimName = self.currentTimName
 
         if self.currentTimName:
             names = self.currentTimName.split(':')
@@ -50,12 +58,19 @@ class MainForm(QMainWindow,Ui_MainForm):
                     if ( index != -1 ):
                         self.cmbType.setCurrentIndex(index)
 
+                    pname = ""
                     if len(names) == 3:
-                        self.txtProject.setText(names[2])
+                        pname = names[2]
                     elif len(names) > 3:
-                        self.txtProject.setText( ":".join(names[2:-1]) )
+                        pname = ":".join(names[2:-1])
 
-        self.currentProjectName = self.txtProject.text().lower()
+                    index = self.txtProject.findText(pname, QtCore.Qt.MatchFixedString)
+                    if index >= 0:
+                        self.txtProject.setCurrentIndex(index)
+                    else:
+                        self.txtProject.addItem(pname)
+
+        self.currentProjectName = self.txtProject.currentText().lower()
         self.currentType = self.cmbType.currentData().lower()
         self.currentEstimateUnit = self.cmbEstimateUnit.itemData(0)
         self.currentEstimate = 0
@@ -65,7 +80,7 @@ class MainForm(QMainWindow,Ui_MainForm):
 
     def initSignals(self):
         self.chbAutoStart.stateChanged.connect(self.changeAutoStart)
-        self.txtProject.textChanged.connect(self.changeProjectName)
+        self.txtProject.currentTextChanged.connect(self.changeProjectName)
         self.cmbType.activated.connect(self.changeType)
         self.btnStartStop.clicked.connect(self.clickedStartStop)
         self.btnBreak.clicked.connect(self.clickedBreak)
@@ -81,22 +96,31 @@ class MainForm(QMainWindow,Ui_MainForm):
         else:
             self.btnStartStop.setText("Start")
 
+    def getStatusText(self, name):
+        diff = self.tim.diff(name)
+        hours, remainder = divmod(diff.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        diff_str = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
+        total_time_str = self.tim.total_time_str(name)
+        return "{0} ({1})".format(diff_str, total_time_str)
+
     def updateUI(self):
         self.cmbType.setEnabled(self.isNotWorking() and self.currentProjectName != "")
         self.txtProject.setEnabled(self.isNotWorking())
 
         self.updateUIButtons()
         
-        if self.currentTimName != self.timBreakName() and self.currentProjectName:
-            diff = self.tim.diff(self.currentTimName)
-            hours, remainder = divmod(diff.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            diff_str = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
-            total_time_str = self.tim.total_time_str(self.currentTimName)
-            self.lblStatus.setText("{0} ({1})".format(diff_str, total_time_str))
+        if self.currentTimName != "":
+            if self.currentTimName != self.timBreakName() and self.currentProjectName != "":
+                self.lblStatus.setText(self.getStatusText(self.currentTimName))
+        elif self.lastTimName != "":
+            self.lblStatus.setText(self.getStatusText(self.lastTimName))
+
+        self.lblStatusName.setText(self.getStatusText(self.timName()))
+
 
     def updateWork(self):
-        self.currentProjectName = self.txtProject.text().lower()
+        self.currentProjectName = self.txtProject.currentText().lower()
         self.currentType = self.cmbType.currentData().lower()
 
         self.updateUI()
@@ -115,7 +139,7 @@ class MainForm(QMainWindow,Ui_MainForm):
     
 
     def changeProjectName(self, str):
-        self.currentProjectName = self.txtProject.text().lower()
+        self.currentProjectName = self.txtProject.currentText().lower()
         self.currentTimName = self.timName()
 
         if self.currentProjectName != "":
@@ -124,6 +148,8 @@ class MainForm(QMainWindow,Ui_MainForm):
             self.cmbType.setEnabled(False)
 
         self.updateUIButtons()
+        
+        self.lblStatusName.setText(self.getStatusText(self.timName()))
 
     def changeType(self,index):
         self.currentType = self.cmbType.itemData(index).lower()
@@ -164,11 +190,12 @@ class MainForm(QMainWindow,Ui_MainForm):
         dt_estimate = timedelta(hours=hours, minutes=minutes, seconds=seconds)
         dt_time = self.tim.total_time(name)
 
-        print(dt_time.total_seconds())
-        print(dt_estimate.total_seconds())
-
-        self.pgbProgress.setMaximum(dt_estimate.total_seconds())
-        self.pgbProgress.setValue(dt_time.total_seconds())
+        if dt_time.total_seconds() > dt_estimate.total_seconds():
+            self.pgbProgress.setMaximum(dt_estimate.total_seconds())
+            self.pgbProgress.setValue(dt_time.total_seconds())
+        else:
+            self.pgbProgress.setMaximum(dt_estimate.total_seconds())
+            self.pgbProgress.setValue(dt_time.total_seconds())
 
     def timName(self):
         if self.currentProjectName == "":
@@ -190,7 +217,7 @@ class MainForm(QMainWindow,Ui_MainForm):
 
     def startStopWorkToggle(self):
         name = self.tim.current_work()
-        time = self.tim.to_datetime(self.txtAddTime.text().lower())
+        time = self.tim.to_datetime(self.txtAddTime.currentText().lower())
 
         if self.currentTimName:
             if not name:
@@ -200,6 +227,7 @@ class MainForm(QMainWindow,Ui_MainForm):
                     self.tim.switch(self.currentTimName, time)
                 else:
                     self.tim.end(time)
+                    self.lastTimName = self.currentTimName
                     self.currentTimName = ""
 
             self.txtAddTime.clear()
@@ -207,12 +235,12 @@ class MainForm(QMainWindow,Ui_MainForm):
         self.updateWork()
     
     def valid_time(self):
-        time = self.tim.parse_isotime(self.tim.to_datetime(self.txtAddTime.text().lower()))
+        time = self.tim.parse_isotime(self.tim.to_datetime(self.txtAddTime.currentText().lower()))
         current_time = self.tim.current_work_start_time()
         return current_time is None or time >= current_time
 
     def startWork(self):
-        time = self.tim.to_datetime(self.txtAddTime.text().lower())
+        time = self.tim.to_datetime(self.txtAddTime.currentText().lower())
 
         if self.currentTimName:
             if self.isNotWorking() and not self.isBreak():
@@ -228,7 +256,7 @@ class MainForm(QMainWindow,Ui_MainForm):
         self.updateWork()
 
     def stopWork(self):
-        time = self.tim.to_datetime(self.txtAddTime.text().lower())
+        time = self.tim.to_datetime(self.txtAddTime.currentText().lower())
 
         if self.currentTimName:
             if self.isWorking() or self.isBreak():
@@ -236,6 +264,7 @@ class MainForm(QMainWindow,Ui_MainForm):
                 current_time = self.tim.current_work_start_time()
                 if time_datetime >= current_time:
                     self.tim.end(time)
+                self.lastTimName = self.currentTimName
                 self.currentTimName = ""
 
         self.txtAddTime.clear()
