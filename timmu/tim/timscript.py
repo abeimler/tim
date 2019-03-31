@@ -53,7 +53,9 @@ class JsonStore(object):
                 'interrupt_stack': [], 
                 'estimate': {}, 
                 'config': {
-                    'autostart': False
+                    'autostart': False,
+                    'prefix': '',
+                    'types': []
                 }
             }
 
@@ -68,7 +70,7 @@ class Tim(object):
     def __init__(self):
         self.tclr = TimColorer(use_color=True)
         self.date_format = '%Y-%m-%dT%H:%M:%SZ'
-        self.date_format_hledger = '%Y/%m-/%d %H:%M:%S'
+        self.date_format_hledger = '%Y/%m/%d %H:%M:%S'
         self.store = JsonStore()
 
         self.data = self.store.load()
@@ -143,19 +145,45 @@ class Tim(object):
     def get_estimate(self, name):
         #self.data = self.store.load()
 
-        return self.data['estimate'] if 'estimate' in self.data and name in self.data['estimate'] else ""
+        return self.data['estimate'][name] if 'estimate' in self.data and name in self.data['estimate'] and name in self.data['estimate'] else ""
 
     def set_config_autostart(self, value):
         self.data = self.store.load()
 
         self.data['config']['autostart'] = value
 
-        self.store.dump(data)
+        self.store.dump(self.data)
     
     def get_config_autostart(self):
         #data = self.store.load()
 
         return self.data['config']['autostart'] if 'config' in self.data and 'autostart' in self.data['config'] else False
+
+    
+    def set_config_prefix(self, value):
+        self.data = self.store.load()
+
+        self.data['config']['prefix'] = value
+
+        self.store.dump(self.data)
+    
+    def get_config_prefix(self):
+        #data = self.store.load()
+
+        return self.data['config']['prefix'] if 'config' in self.data and 'prefix' in self.data['config'] else ""
+
+    
+    def set_config_types(self, value):
+        self.data = self.store.load()
+
+        self.data['config']['types'] = value
+
+        self.store.dump(self.data)
+    
+    def get_config_types(self):
+        #data = self.store.load()
+
+        return self.data['config']['types'] if 'config' in self.data and 'types' in self.data['config'] else []
 
     def current_work(self):
         if (not self.is_working()):
@@ -299,9 +327,9 @@ class Tim(object):
         data = self.store.load()
         hlfname = self.hledger_save(data)
 
-        cmd_list = ['hledger', '-f', hlfname].extend(param.split(' '))
+        cmd_list = ['hledger', '-f', hlfname].extend(param)
         print("tim executes: " + " ".join(cmd_list))
-        subprocess.call(cmd_list) 
+        subprocess.run(cmd_list) 
 
 
     def ini(self):
@@ -383,7 +411,7 @@ class Tim(object):
 
 
     def to_datetime(self, timestr):
-        dt = self.parse_engtime(timestr).isoformat()
+        dt = self.parse_engtime(timestr).strftime(self.date_format)
         return dt
 
 
@@ -394,16 +422,20 @@ class Tim(object):
         try:
             LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
             tzinfos={ "tzname": LOCAL_TIMEZONE }
-            dt = parser.parse(timestr, tzinfos=tzinfos)
+
+            dt = datetime.now(timezone.utc)
+
+            pasttimestr = self.get_past_date(timestr)
+            if pasttimestr != "":
+                dt = parser.parse(pasttimestr)
+            else:
+                dt = parser.parse(timestr, tzinfos=tzinfos)
 
             dt = dt.astimezone(timezone.utc)
 
             return dt
-        except ValueError:
-            timestr = self.get_past_date(timestr)
-            dt = parser.parse(timestr)
-
-            return dt
+        except ValueError as e:
+            raise RuntimeError("Parse time string '" + timestr + "' Error: " + str(e))
 
         return datetime.now(timezone.utc)
         
@@ -440,7 +472,7 @@ class Tim(object):
                 date = now - relativedelta(years=int(splitted[0]))
                 return str(date.isoformat())
         
-        return str(now.isoformat())
+        return ""
 
     def parse_isotime(self, isotime):
         LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
@@ -479,7 +511,7 @@ class Tim(object):
 
         total_seconds = 0
         for work in works:
-            if work['start']:
+            if 'start' in work and work['start']:
                 name = work['name']
 
                 start_time = self.parse_isotime(work['start'])
@@ -513,7 +545,6 @@ class Tim(object):
                             ret[nn]['work'] = []
                             ret[nn]['delta'] = timedelta(0)
                             ret[nn]['total_seconds'] = 0
-                            ret[nn]['name'] = nn
 
                         entry = { 
                             'start': start_time,
@@ -522,9 +553,12 @@ class Tim(object):
                             'dura_str': dura_str 
                         }    
                         
+                        ret[nn]['name'] = nn
+                        ret[nn]['estimate'] = self.get_estimate(nn)
+                        ret[nn]['realentry'] = nn == name
+                        
                         ret[nn]['work'].append(entry)
                         ret[nn]['delta'] = ret[nn]['delta'] + delta
-                        ret[nn]['name'] = nn
                         ret[nn]['total_seconds'] = ret[nn]['total_seconds'] + total_seconds
 
         return ret
