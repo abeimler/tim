@@ -1,8 +1,9 @@
 from PyQt5 import QtGui, QtCore
-from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtWidgets import QMainWindow, QTreeWidgetItem, QTableWidgetItem
 
 import re
 from datetime import datetime, timedelta, date
+import json
 
 from .tim.timscript import Tim
 from .ui_mainwindow import Ui_MainForm
@@ -30,8 +31,12 @@ class MainForm(QMainWindow,Ui_MainForm):
         event.accept()
 
     def init(self):
+        self.tim.load()
+        print(json.dumps(self.tim.data_map, indent=4, sort_keys=True, default=str))
+
         self.chbAutoStart.setChecked(self.tim.get_config_autostart())
         #self.chbAutoStop.setChecked(self.tim.get_config_autostop())
+        self.chbGenTimeclock.setChecked(self.tim.get_config_gen_timeclock())
         
         self.prefix = self.tim.get_config_prefix().lower()
         if self.prefix == "":
@@ -78,6 +83,9 @@ class MainForm(QMainWindow,Ui_MainForm):
         self.updateUI()
         self.updateEstimate()
 
+        self.updateProjectTreeData()
+        self.updateProjectTableData()
+
     def updateProjectNameFromCurrentTimName(self):
         if self.currentTimName:
             names = self.currentTimName.split(':')
@@ -110,6 +118,7 @@ class MainForm(QMainWindow,Ui_MainForm):
 
     def initSignals(self):
         self.chbAutoStart.stateChanged.connect(self.changeAutoStart)
+        self.chbGenTimeclock.stateChanged.connect(self.changeGenTimeclock)
         self.txtProject.currentTextChanged.connect(self.changeProjectName)
         self.txtProject.editTextChanged.connect(self.editProjectName)
         self.txtProject.currentIndexChanged.connect(self.changeProjectNameIndex)
@@ -136,21 +145,25 @@ class MainForm(QMainWindow,Ui_MainForm):
 
         self.updateUIButtons()
         
-        self.updateStatusText()
-        self.updateStatusNameText()
+        self.updateCurrentSessionInfo()
+        self.updateLastSessionInfo()
 
         self.updateEstimateProgress()
 
-    def updateStatusText(self):
+    def updateCurrentSessionInfo(self):
+        name = self.timName()
+        self.lblCurrentSessionInfo.setText(self.getStatusText(name))
+        self.lblCurrentSessionInfo2.setText(self.getStatusText2(name))
+
+    def updateLastSessionInfo(self):
         if self.currentTimName:
             if self.currentTimName != self.timBreakName() and self.currentProjectName:
-                self.lblStatus.setText(self.getStatusText(self.currentTimName))
+                self.lblCurrentSessionInfo.setText(self.getStatusText(self.currentTimName))
+                self.lblCurrentSessionInfo2.setText(self.getStatusText2(self.currentTimName))
         elif self.lastTimName:
-            self.lblStatus.setText(self.getStatusText(self.lastTimName))
-
-    def updateStatusNameText(self):
-        self.lblStatusName.setText(self.getStatusText(self.timName()))
-        self.lblStatusName2.setText(self.getStatusText2(self.timName()))
+            self.lblCurrentSessionInfo.setText(self.getStatusText(self.lastTimName))
+            self.lblCurrentSessionInfo2.setText(self.getStatusText2(self.lastTimName))
+            
 
     def updateWork(self):
         self.currentProjectName = self.txtProject.currentText().lower()
@@ -158,16 +171,27 @@ class MainForm(QMainWindow,Ui_MainForm):
 
         self.updateUI()
 
+    def saveTimeclock(self):
+        if self.tim.get_config_gen_timeclock():
+            self.tim.hledger_save()
+
     def clickedStartStop(self):
         if self.valid_time():
             self.currentTimName = self.timName()
             self.startStopWorkToggle()
-        
+            self.saveTimeclock()
+
+            self.updateProjectTreeData()
+            self.updateProjectTableData()
 
     def clickedBreak(self):
         if self.valid_time():
             self.currentTimName = self.timBreakName()
             self.startStopWorkToggle()
+            self.saveTimeclock()
+
+            self.updateProjectTreeData()
+            self.updateProjectTableData()
     
 
 
@@ -183,6 +207,11 @@ class MainForm(QMainWindow,Ui_MainForm):
         else:
             self.tim.set_config_autostart(False)
 
+    def changeGenTimeclock(self, state):
+        if state == QtCore.Qt.Checked:
+            self.tim.set_config_gen_timeclock(True)
+        else:
+            self.tim.set_config_gen_timeclock(False)
     
     def changeEstimateUnit(self,index):
         self.currentEstimateUnit = self.cmbEstimateUnit.itemData(index)
@@ -204,8 +233,8 @@ class MainForm(QMainWindow,Ui_MainForm):
 
         self.updateUIButtons()
         
-        self.lblStatusName.setText(self.getStatusText(self.timName()))
-        self.updateStatusNameText()
+        self.lblLastSessionInfo.setText(self.getStatusText(self.timName()))
+        self.updateLastSessionInfo()
         self.updateEstimate()
 
     def editProjectNamePressEnter(self):
@@ -432,3 +461,49 @@ class MainForm(QMainWindow,Ui_MainForm):
                             ret.add(pname)
 
         return ret
+
+    def updateProjectTableData(self):
+        self.tblWorks.setColumnCount(4)
+        self.tblWorks.setHorizontalHeaderLabels(['Name', 'Start', 'End', 'Duration'])
+
+        self.tblWorks.setRowCount(len(self.tim.data['work']))
+
+        self.date_format = "%d %b %Y %H:%M:%S";
+        LOCAL_TIMEZONE = datetime.now().astimezone().tzinfo
+
+        for index, work in enumerate(self.tim.data['work']):
+            delta_str = self.tim.delta_str(work["start"], work["end"])
+            start = self.tim.parse_isotime(work["start"]).astimezone(LOCAL_TIMEZONE).strftime(self.date_format)
+            end = self.tim.parse_isotime(work["end"]).astimezone(LOCAL_TIMEZONE).strftime(self.date_format)
+
+            self.tblWorks.setItem(index, 0, QTableWidgetItem(work["name"]))
+            self.tblWorks.setItem(index, 1, QTableWidgetItem(start))
+            self.tblWorks.setItem(index, 2, QTableWidgetItem(end))
+            self.tblWorks.setItem(index, 3, QTableWidgetItem(delta_str)) 
+
+
+        
+
+    
+
+    def updateProjectTreeData(self):
+        keys = self.tim.data_map.keys()
+
+        tree = []
+
+        for work_name in keys:
+            rootname = ""
+            name = ""
+            depth = 0
+            for depth, n in enumerate(work_name.split(':')):
+                rootname = name
+                name = name + ":" + n if name != "" else n
+                depth = depth+1
+
+                finds = [i for i, t in enumerate(tree) if t.text(0) == n]
+
+                if len(finds) == 0:
+                    if depth == 1:
+                        tree.append(QTreeWidgetItem([n]))
+        
+        self.treeWorks.addTopLevelItems(tree)

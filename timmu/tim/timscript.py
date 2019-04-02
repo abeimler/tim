@@ -136,10 +136,11 @@ class Tim(object):
 
         self.store.dump(self.data)
 
-        self.hledger_save(self.data)
         self.data_map = self.gen_map(self.data)
-        print(json.dumps(self.data_map, indent=4, sort_keys=True, default=str))
 
+    def load(self):
+        self.data = self.store.load()
+        self.data_map = self.gen_map(self.data)
 
 
     def set_info_value(self, field, name, value):
@@ -218,6 +219,11 @@ class Tim(object):
     def get_config_types(self):
         return self.get_config_value('types', [])
     
+    def set_config_gen_timeclock(self, value):
+        self.set_config_value('gentimeclock', value)
+    
+    def get_config_gen_timeclock(self):
+        return self.get_config_value('gentimeclock', False)
 
     def current_work(self):
         if (not self.is_working()):
@@ -305,6 +311,12 @@ class Tim(object):
         delta = timedelta(seconds=total_seconds)
         return self._delta_total_time_str(delta)
 
+    def delta_str(self, start, end):
+        start_time = self.parse_isotime(start)
+        end_time = self.parse_isotime(end)
+        diff = end_time - start_time
+        delta = timedelta(seconds=diff.seconds)
+        return self._delta_total_time_str(delta)
     
     def _delta_total_time_str(self, timedelta):
         mins = math.floor(timedelta.total_seconds() / 60)
@@ -339,8 +351,8 @@ class Tim(object):
         return name, diff
 
 
-    def hledger_save(self, data):
-        work = data['work']
+    def hledger_save(self):
+        work = self.data['work']
 
         # hlfname = os.path.expanduser('~/.tim.hledger')
         hlfname = os.path.join( self.store.cfg.get('tim', 'folder'), 'tim.timeclock')
@@ -362,8 +374,7 @@ class Tim(object):
 
     def hledger(self, param):
         # print("hledger param", param)
-        data = self.store.load()
-        hlfname = self.hledger_save(data)
+        hlfname = self.hledger_save()
 
         cmd_list = ['hledger', '-f', hlfname].extend(param)
         print("tim executes: " + " ".join(cmd_list))
@@ -551,7 +562,7 @@ class Tim(object):
         ret = {}
 
         total_seconds = 0
-        for work in works:
+        for index, work in enumerate(works):
             if 'start' in work and work['start']:
                 work_name = work['name']
 
@@ -567,7 +578,7 @@ class Tim(object):
                 total_delta_str = self._delta_total_time_str(total_delta)
 
                 nn = ""
-                for n in work_name.split(':'):
+                for depth, n in enumerate(work_name.split(':')):
                     nn = nn + ":" + n if nn != "" else n
 
                     if nn:
@@ -575,6 +586,8 @@ class Tim(object):
                             ret[nn] = self._new_data_map()
 
                         entry = { 
+                            'index': index,
+                            'name': work_name,
                             'start': start_time,
                             'end': end_time,
                             'delta': delta, 
@@ -584,7 +597,8 @@ class Tim(object):
                         ret[nn]['name'] = nn
                         ret[nn]['estimate'] = self.get_estimate(nn)
                         ret[nn]['infos'] = self.get_infos(nn)
-                        ret[nn]['realentry'] = nn == work_name
+                        ret[nn]['realentry'] = ret[nn]['realentry'] or nn == work_name
+                        ret[nn]['depth'] = depth+1
                         
                         ret[nn]['work'].append(entry)
                         ret[nn]['delta'] = ret[nn]['delta'] + delta
@@ -601,6 +615,8 @@ class Tim(object):
         ret['estimate'] = '00:00:00'
         ret['infos'] = {}
         ret['realentry'] = False
+        ret['index'] = None
+        ret['depth'] = 0
         ret['work'] = []
         ret['delta'] = timedelta(0)
         ret['delta_str'] = self._delta_total_time_str(ret['delta'])
