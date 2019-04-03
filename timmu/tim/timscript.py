@@ -112,13 +112,12 @@ class Tim(object):
         }
 
         work.append(entry)
-        self.store.dump(self.data)
-
         print('Start working on ' + self.tclr.green(name) + ' at ' + time + '.')
 
+        self.data_map = self.gen_map(self.data)
+        #self.update_map_all(name)
+        self.store.dump(self.data)
 
-    def printtime(self, time):
-        print("You entered '" + time + "' as a test")
 
     def end(self, time, back_from_interrupt=True):
         if(not self.ensure_working()):
@@ -134,9 +133,14 @@ class Tim(object):
         diff = self.timegap(start_time, self.parse_isotime(time))
         print('You stopped working on ' + self.tclr.red(current['name']) + ' at ' + time + ' (total: ' + self.tclr.bold(diff) + ').')
 
+        #self.data_map = self.gen_map(self.data)
+        self.update_map_all(current['name'], True)
         self.store.dump(self.data)
 
-        self.data_map = self.gen_map(self.data)
+
+
+    def printtime(self, time):
+        print("You entered '" + time + "' as a test")
 
     def load(self):
         self.data = self.store.load()
@@ -556,6 +560,60 @@ class Tim(object):
         else:
             return "more than a day (%d hours)" % (hours)
    
+
+    def update_map(self, name, isended=None):
+        if not name in self.data_map:
+            return 
+        
+        data = self.data_map[name]
+
+        total_seconds = 0
+        workisended = False
+        for work in data['work']:
+            workisended = isended if not isended is None else work['isended'] 
+            start_time = work['start']
+            end_time = work['end'] if 'end' in work and workisended else datetime.now(timezone.utc)
+            diff = end_time - start_time
+
+            delta = timedelta(seconds=diff.seconds)
+            delta_str = self._delta_total_time_str(delta)
+
+            total_seconds = total_seconds + diff.seconds
+            total_delta = timedelta(seconds=total_seconds)
+            total_delta_str = self._delta_total_time_str(total_delta) 
+
+            if isended:
+                work['end'] = end_time
+            else:
+                work['delta'] = delta
+                work['delta_str'] = delta_str
+                
+        if isended:
+            data['isstarted'] = not workisended
+        
+        data['last_work_delta'] = delta
+        data['last_work_delta_str'] = delta_str
+        data['delta'] = total_delta
+        data['delta_str'] = total_delta_str
+        data['total_seconds'] = total_seconds
+        data['count'] = len(data['work'])
+
+        self.data_map[name] = data
+
+        return data
+
+    def update_map_all(self, name, isended=None):
+        if not name in self.data_map:
+            return 
+        
+        nn = ""
+        for depth, n in enumerate(name.split(':')):
+            nn = nn + ":" + n if nn != "" else n
+
+            if nn:
+                self.update_map(nn, isended)
+
+
     def gen_map(self, data):
         works = data['work']
 
@@ -569,6 +627,7 @@ class Tim(object):
                 start_time = self.parse_isotime(work['start'])
                 end_time = self.parse_isotime(work['end']) if 'end' in work else datetime.now(timezone.utc)
                 diff = end_time - start_time
+                isended = 'end' in work
 
                 delta = timedelta(seconds=diff.seconds)
                 delta_str = self._delta_total_time_str(delta)
@@ -591,7 +650,8 @@ class Tim(object):
                             'start': start_time,
                             'end': end_time,
                             'delta': delta, 
-                            'delta_str': delta_str 
+                            'delta_str': delta_str,
+                            'isended': isended
                         }    
                         
                         ret[nn]['name'] = nn
@@ -599,8 +659,11 @@ class Tim(object):
                         ret[nn]['infos'] = self.get_infos(nn)
                         ret[nn]['realentry'] = ret[nn]['realentry'] or nn == work_name
                         ret[nn]['depth'] = depth+1
+                        ret[nn]['isstarted'] = not isended
                         
                         ret[nn]['work'].append(entry)
+                        ret[nn]['last_work_delta'] = delta
+                        ret[nn]['last_work_delta_str'] = delta_str
                         ret[nn]['delta'] = ret[nn]['delta'] + delta
                         ret[nn]['delta_str'] = self._delta_total_time_str(ret[nn]['delta'])
                         ret[nn]['total_seconds'] = ret[nn]['total_seconds'] + total_seconds
@@ -620,6 +683,9 @@ class Tim(object):
         ret['work'] = []
         ret['delta'] = timedelta(0)
         ret['delta_str'] = self._delta_total_time_str(ret['delta'])
+        ret['last_work_delta'] = timedelta(0)
+        ret['last_work_delta_str'] = self._delta_total_time_str(ret['delta'])
         ret['total_seconds'] = 0
         ret['count'] = 0
+        ret['isstarted'] = False
         return ret

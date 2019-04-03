@@ -86,6 +86,11 @@ class MainForm(QMainWindow,Ui_MainWindow):
         self.updateProjectTreeData()
         self.updateProjectTableData()
 
+        self._status_update_timer = QtCore.QTimer(self)
+        self._status_update_timer.setSingleShot(False)
+        self._status_update_timer.timeout.connect(self._update_status)
+        self._status_update_timer.start(1000)
+
     def updateProjectNameFromCurrentTimName(self):
         if self.currentTimName:
             names = self.currentTimName.split(':')
@@ -130,6 +135,8 @@ class MainForm(QMainWindow,Ui_MainWindow):
         self.txtProject.lineEdit().returnPressed.connect(self.editProjectNamePressEnter)
         self.treeWorks.itemSelectionChanged.connect(self.changeSeletionTreeWork)
 
+    def updateWindowTitle(self):
+        self.setWindowTitle('Timmu ({0})'.format(self.currentProjectName))
     
     def updateUIButtons(self):
         self.btnBreak.setEnabled(self.isWorking() and not self.isBreak() and self.valid_time())
@@ -150,27 +157,43 @@ class MainForm(QMainWindow,Ui_MainWindow):
         self.updateLastSessionInfo()
 
         self.updateEstimateProgress()
+        self.updateWindowTitle()
+        
 
     def updateCurrentSessionInfo(self):
         name = self.timName()
-        self.lblCurrentSessionInfo.setText(self.getStatusText(name))
-        self.lblCurrentSessionInfo2.setText(self.getStatusText2(name))
+        data = self.tim.get_data(name)
+        if data['isstarted']:
+            self.lblCurrentSessionInfo.setText(self.getStatusTextLastWork(name))
+            self.lblCurrentSessionInfo2.setText(self.getStatusTextCount(name))
+            self.lblCurrentSessionInfo3.setText(self.getStatusTextDelta(name))
+        else:
+            self.lblCurrentSessionInfo.setText(self.getStatusTextLastWork(''))
+            self.lblCurrentSessionInfo2.setText(self.getStatusTextCount(''))
+            self.lblCurrentSessionInfo3.setText(self.getStatusTextDelta(''))
 
     def updateLastSessionInfo(self):
-        if self.currentTimName:
-            if self.currentTimName != self.timBreakName() and self.currentProjectName:
-                self.lblCurrentSessionInfo.setText(self.getStatusText(self.currentTimName))
-                self.lblCurrentSessionInfo2.setText(self.getStatusText2(self.currentTimName))
-        elif self.lastTimName:
-            self.lblCurrentSessionInfo.setText(self.getStatusText(self.lastTimName))
-            self.lblCurrentSessionInfo2.setText(self.getStatusText2(self.lastTimName))
-            
+        if self.lastTimName:
+            self.lblLastSessionInfo.setText(self.lastTimName)
+            self.lblLastSessionInfo2.setText(self.getStatusTextDelta(self.lastTimName))
+
+    def _update_status(self):
+        self.updateCurrentWork()
+
+    def updateCurrentWork(self):
+        name = self.timName()
+        self.tim.update_map(name)
+        self.updateCurrentSessionInfo()
 
     def updateWork(self):
         self.currentProjectName = self.txtProject.currentText().lower()
         self.currentType = self.cmbType.currentData().lower()
 
         self.updateUI()
+        self.updateWindowTitle()
+
+        self.updateCurrentSessionInfo()
+        self.updateLastSessionInfo()
 
     def saveTimeclock(self):
         if self.tim.get_config_gen_timeclock():
@@ -181,6 +204,8 @@ class MainForm(QMainWindow,Ui_MainWindow):
             self.currentTimName = self.timName()
             self.startStopWorkToggle()
             self.saveTimeclock()
+
+            self.updateCurrentSessionInfo()
 
             self.updateProjectTreeData()
             self.updateProjectTableData()
@@ -234,8 +259,7 @@ class MainForm(QMainWindow,Ui_MainWindow):
 
         self.updateUIButtons()
         
-        self.lblLastSessionInfo.setText(self.getStatusText(self.timName()))
-        self.updateLastSessionInfo()
+        self.updateCurrentSessionInfo()
         self.updateEstimate()
 
     def editProjectNamePressEnter(self):
@@ -412,18 +436,35 @@ class MainForm(QMainWindow,Ui_MainWindow):
 
                 self.updateEstimate()
 
-    def getStatusText(self, name):
-        data = self.tim.get_data(name)
+    def getStatusTextLastWork(self, name):
+        diff_str = '--:--:--'
+        total_time_str = '0 hours'
+        if name:
+            data = self.tim.get_data(name)
 
-        diff_str = str(data['delta'])
-        total_time_str = data['delta_str']
-
+            diff_str = str(data['last_work_delta'])
+            total_time_str = data['last_work_delta_str']
+        
         return "{0} ({1})".format(diff_str, total_time_str)
 
-    def getStatusText2(self, name):
-        data = self.tim.get_data(name)
+    def getStatusTextCount(self, name):
+        count = 0
+        if name:
+            data = self.tim.get_data(name)
+            count = data['count']
 
-        return "Entries Count: {0}".format(data['count'])
+        return "Entries Count: {0}".format(count)
+
+    def getStatusTextDelta(self, name):
+        diff_str = '--:--:--'
+        total_time_str = '0 hours'
+        if name:
+            data = self.tim.get_data(name)
+
+            diff_str = str(data['delta'])
+            total_time_str = data['delta_str']
+
+        return "{0} ({1})".format(diff_str, total_time_str)
     
     def updateProjectNameSearch(self, pname):
         names = self.searchProjectNames(pname)
@@ -529,7 +570,8 @@ class MainForm(QMainWindow,Ui_MainWindow):
             if len(names) > 0:
                 prefixname = names[0]
                 typename = names[1] if len(names) >= 2 else ""
-                projectname = ':'.join(names[2:]) if len(names) >= 3 else ""
+                projectname = names[2] if len(names) >= 3 else ""
+                subprojectname = ':'.join(names[3:]) if len(names) >= 4 else ""
 
                 roottree = list(filter(lambda t: t.text(0) == prefixname, tree))
                 if len(roottree) == 0:
@@ -538,31 +580,28 @@ class MainForm(QMainWindow,Ui_MainWindow):
                 else:
                     prefixitem = roottree[0]
 
-                if prefixitem:
-                    findtypechild = None
-                    for i in range(prefixitem.childCount()):
-                        typechild = prefixitem.child(i)
+                findtypechild = self._addChildProjectToTree(prefixitem, typename, prefixname + ":" + typename)
+                findprojectchild = self._addChildProjectToTree(findtypechild, projectname, prefixname + ":" + typename + ":" + projectname)
+                findsubprojectchild = self._addChildProjectToTree(findprojectchild, subprojectname, prefixname + ":" + typename + ":" + projectname + ":" + subprojectname)
 
-                        if typechild.text(0) == typename:
-                            findtypechild = typechild
-                            break
-
-                    if findtypechild is None and typename != "":
-                        prefixitem.addChild(QTreeWidgetItem([typename, prefixname + ":" + typename]))
-                        findtypechild = prefixitem.child(prefixitem.childCount()-1)
-                    
-                    if findtypechild:
-                        findprojectchild = None
-                        for i in range(findtypechild.childCount()):
-                            projectchild = findtypechild.child(i)
-
-                            if projectchild.text(0) == projectname:
-                                findprojectchild = projectchild
-                                break
-
-                        if findprojectchild is None and projectname != "":
-                            findtypechild.addChild(QTreeWidgetItem([projectname, prefixname + ":" + typename + ":" + projectname]))
-                            findprojectchild = findtypechild.child(findtypechild.childCount()-1)
-
-        
         self.treeWorks.addTopLevelItems(tree)
+
+
+    def _addChildProjectToTree(self, parent, projectname, fullprojectname):
+        newchild = None
+        if parent:
+            findchild = None
+            for i in range(parent.childCount()):
+                parentchild = parent.child(i)
+
+                if parentchild.text(0) == projectname:
+                    findchild = parentchild
+                    break
+
+            if findchild is None and projectname != "":
+                parent.addChild(QTreeWidgetItem([projectname, fullprojectname]))
+                newchild = parent.child(parent.childCount()-1)
+            else:
+                newchild = findchild
+
+        return newchild
