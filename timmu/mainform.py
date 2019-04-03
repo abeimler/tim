@@ -6,12 +6,12 @@ from datetime import datetime, timedelta, date
 import json
 
 from .tim.timscript import Tim
-from .ui_mainwindow import Ui_MainForm
+from .ui_mainwindow import Ui_MainWindow
 
-class MainForm(QMainWindow,Ui_MainForm):    
+class MainForm(QMainWindow,Ui_MainWindow):    
     def __init__(self):     
         QMainWindow.__init__(self)
-        Ui_MainForm.__init__(self)
+        Ui_MainWindow.__init__(self)
         self.setupUi(self)
 
         self.tim = Tim()
