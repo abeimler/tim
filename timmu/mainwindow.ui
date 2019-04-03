@@ -6,226 +6,212 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>886</width>
-    <height>385</height>
+    <width>1029</width>
+    <height>437</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Timmu</string>
   </property>
-  <widget class="QWidget" name="gridLayoutWidget">
-   <property name="geometry">
-    <rect>
-     <x>8</x>
-     <y>10</y>
-     <width>871</width>
-     <height>371</height>
-    </rect>
-   </property>
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0">
-     <widget class="QLabel" name="lblType">
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="5" column="2">
+    <widget class="QComboBox" name="cmbEstimateUnit"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblProjectName">
+     <property name="text">
+      <string>Project Name:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="3">
+    <widget class="QLabel" name="lblLastSessionInfo2">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QPushButton" name="btnStartStop">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Start</string>
+     </property>
+     <property name="default">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QLabel" name="lblCurrentSessionInfo">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="lblEstimate">
+     <property name="text">
+      <string>Estimate:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1" colspan="2">
+    <widget class="QComboBox" name="txtProject">
+     <property name="toolTip">
+      <string>Project Name</string>
+     </property>
+     <property name="editable">
+      <bool>true</bool>
+     </property>
+     <property name="insertPolicy">
+      <enum>QComboBox::InsertAlphabetically</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1">
+    <widget class="QCheckBox" name="chbAutoStart">
+     <property name="toolTip">
+      <string>Start last Project after you start this program</string>
+     </property>
+     <property name="text">
+      <string>Auto-Start</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="3">
+    <spacer name="horizontalSpacer_2">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>299</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="1" column="3">
+    <widget class="QLabel" name="lblLastSessionInfo">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="lblStatusCurrent">
+     <property name="text">
+      <string>Current Session:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="2">
+    <widget class="QLabel" name="lblCurrentSessionInfo2">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QComboBox" name="txtAddTime">
+     <property name="toolTip">
+      <string>time like &quot;13:00&quot; or &quot;20 minutes ago&quot;</string>
+     </property>
+     <property name="editable">
+      <bool>true</bool>
+     </property>
+     <property name="maxVisibleItems">
+      <number>5</number>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblType">
+     <property name="text">
+      <string>Type:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="3">
+    <widget class="QProgressBar" name="pgbProgress">
+     <property name="value">
+      <number>0</number>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1" colspan="2">
+    <widget class="QComboBox" name="cmbType">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="2">
+    <widget class="QCheckBox" name="chbGenTimeclock">
+     <property name="toolTip">
+      <string>for hledger</string>
+     </property>
+     <property name="text">
+      <string>gen. timeclock-File</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1" colspan="3">
+    <widget class="QTableWidget" name="tblWorks">
+     <property name="editTriggers">
+      <set>QAbstractItemView::NoEditTriggers</set>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="0">
+    <widget class="QTreeWidget" name="treeWorks">
+     <property name="editTriggers">
+      <set>QAbstractItemView::NoEditTriggers</set>
+     </property>
+     <column>
       <property name="text">
-       <string>Type:</string>
+       <string>Projects</string>
       </property>
-     </widget>
-    </item>
-    <item row="3" column="1" colspan="2">
-     <layout class="QGridLayout" name="gridLayout_2">
-      <item row="0" column="0">
-       <widget class="QPushButton" name="btnStartStop">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="text">
-         <string>Start</string>
-        </property>
-        <property name="default">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="btnBreak">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="text">
-         <string>Break</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item row="7" column="0">
-     <widget class="QTreeWidget" name="treeWorks">
-      <property name="editTriggers">
-       <set>QAbstractItemView::NoEditTriggers</set>
-      </property>
-      <column>
-       <property name="text">
-        <string>Projects</string>
-       </property>
-      </column>
-     </widget>
-    </item>
-    <item row="6" column="2">
-     <widget class="QCheckBox" name="chbGenTimeclock">
-      <property name="toolTip">
-       <string>for hledger</string>
-      </property>
-      <property name="text">
-       <string>gen. timeclock-File</string>
-      </property>
-     </widget>
-    </item>
-    <item row="6" column="1">
-     <widget class="QCheckBox" name="chbAutoStart">
-      <property name="toolTip">
-       <string>Start last Project after you start this program</string>
-      </property>
-      <property name="text">
-       <string>Auto-Start</string>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="1" colspan="2">
-     <widget class="QLabel" name="lblCurrentSessionInfo">
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="0">
-     <widget class="QLabel" name="lblStatusCurrent">
-      <property name="text">
-       <string>Current Session:</string>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="3">
-     <widget class="QProgressBar" name="pgbProgress">
-      <property name="value">
-       <number>0</number>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1" colspan="2">
-     <widget class="QComboBox" name="txtProject">
-      <property name="toolTip">
-       <string>Project Name</string>
-      </property>
-      <property name="editable">
-       <bool>true</bool>
-      </property>
-      <property name="insertPolicy">
-       <enum>QComboBox::InsertAlphabetically</enum>
-      </property>
-     </widget>
-    </item>
-    <item row="7" column="1" colspan="3">
-     <widget class="QTableWidget" name="tblWorks">
-      <property name="editTriggers">
-       <set>QAbstractItemView::NoEditTriggers</set>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="3">
-     <widget class="QLabel" name="lblLastSessionInfo2">
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="0">
-     <widget class="QLabel" name="lblProjectName">
-      <property name="text">
-       <string>Project Name:</string>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="2">
-     <widget class="QComboBox" name="cmbEstimateUnit"/>
-    </item>
-    <item row="0" column="1" colspan="2">
-     <widget class="QComboBox" name="cmbType">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="1">
-     <widget class="QSpinBox" name="spbEstimateValue"/>
-    </item>
-    <item row="4" column="3">
-     <widget class="QLabel" name="lblCurrentSessionInfo2">
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="3">
-     <widget class="QLabel" name="lblLastSessionInfo">
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="3">
-     <spacer name="horizontalSpacer">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>60</width>
-        <height>20</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-    <item row="0" column="3">
-     <widget class="QLabel" name="lblLastSessionText">
-      <property name="text">
-       <string>Last Session:</string>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="0">
-     <widget class="QComboBox" name="txtAddTime">
-      <property name="toolTip">
-       <string>time like &quot;13:00&quot; or &quot;20 minutes ago&quot;</string>
-      </property>
-      <property name="editable">
-       <bool>true</bool>
-      </property>
-      <property name="maxVisibleItems">
-       <number>5</number>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="0">
-     <widget class="QLabel" name="lblEstimate">
-      <property name="text">
-       <string>Estimate:</string>
-      </property>
-     </widget>
-    </item>
-    <item row="6" column="3">
-     <spacer name="horizontalSpacer_2">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>40</width>
-        <height>20</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-   </layout>
-  </widget>
+     </column>
+    </widget>
+   </item>
+   <item row="5" column="1">
+    <widget class="QSpinBox" name="spbEstimateValue"/>
+   </item>
+   <item row="0" column="3">
+    <widget class="QLabel" name="lblLastSessionText">
+     <property name="text">
+      <string>Last Session:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="2">
+    <widget class="QPushButton" name="btnBreak">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Break</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>299</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
  </widget>
  <resources/>
  <connections/>

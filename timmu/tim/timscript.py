@@ -529,7 +529,7 @@ class Tim(object):
     def parse_isotime(self, isotime):
         LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
         tzinfos={ "tzname": LOCAL_TIMEZONE }
-        dt = parser.parse(isotime, tzinfos=tzinfos)
+        dt = isotime if isinstance(isotime, datetime) else parser.parse(isotime, tzinfos=tzinfos)
 
         dt = dt.astimezone(timezone.utc)
         return dt

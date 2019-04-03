@@ -128,6 +128,7 @@ class MainForm(QMainWindow,Ui_MainForm):
         self.cmbEstimateUnit.activated.connect(self.changeEstimateUnit)
         self.spbEstimateValue.valueChanged.connect(self.changeEstimate)
         self.txtProject.lineEdit().returnPressed.connect(self.editProjectNamePressEnter)
+        self.treeWorks.itemSelectionChanged.connect(self.changeSeletionTreeWork)
 
     
     def updateUIButtons(self):
@@ -246,6 +247,9 @@ class MainForm(QMainWindow,Ui_MainForm):
 
     def changeProjectNameIndex(self, index):
         pass
+
+    def changeSeletionTreeWork(self):
+        self.updateProjectTableData()
 
     def startStopWorkToggle(self):
         name = self.tim.current_work()
@@ -462,24 +466,50 @@ class MainForm(QMainWindow,Ui_MainForm):
 
         return ret
 
-    def updateProjectTableData(self):
-        self.tblWorks.setColumnCount(4)
-        self.tblWorks.setHorizontalHeaderLabels(['Name', 'Start', 'End', 'Duration'])
-
-        self.tblWorks.setRowCount(len(self.tim.data['work']))
-
+    def _format_datetime(self, at):
         self.date_format = "%d %b %Y %H:%M:%S";
         LOCAL_TIMEZONE = datetime.now().astimezone().tzinfo
+        return self.tim.parse_isotime(at).astimezone(LOCAL_TIMEZONE).strftime(self.date_format)
 
-        for index, work in enumerate(self.tim.data['work']):
-            delta_str = self.tim.delta_str(work["start"], work["end"])
-            start = self.tim.parse_isotime(work["start"]).astimezone(LOCAL_TIMEZONE).strftime(self.date_format)
-            end = self.tim.parse_isotime(work["end"]).astimezone(LOCAL_TIMEZONE).strftime(self.date_format)
+    def updateProjectTableData(self):
 
-            self.tblWorks.setItem(index, 0, QTableWidgetItem(work["name"]))
-            self.tblWorks.setItem(index, 1, QTableWidgetItem(start))
-            self.tblWorks.setItem(index, 2, QTableWidgetItem(end))
-            self.tblWorks.setItem(index, 3, QTableWidgetItem(delta_str)) 
+        selected_work = ""
+        selected = self.treeWorks.selectedItems()
+        if len(selected) > 0:
+            selected_work = selected[0].text(1)
+
+        start_min = ""
+        end_max = ""
+        total_dura = ""
+
+        works = self.tim.data['work']
+        if selected_work and selected_work in self.tim.data_map:
+            work = self.tim.data_map[selected_work]
+            works = work['work']
+
+            start_min = min(works, key=lambda x: x['start'])['start']
+            end_max = max(works, key=lambda x: x['end'])['end']
+            total_dura = work['delta_str']
+
+        self.tblWorks.setColumnCount(4)
+        self.tblWorks.setHorizontalHeaderLabels([
+            'Name', 
+            'Start ({0})'.format(self._format_datetime(start_min)) if start_min else 'Start', 
+            'End ({0})'.format(self._format_datetime(end_max)) if end_max else 'End', 
+            'Duration ({0})'.format(total_dura) if total_dura else 'Duration'
+        ])
+
+        self.tblWorks.setRowCount(len(works))
+        for index, work in enumerate(works):
+            if 'start' in work:
+                delta_str = self.tim.delta_str(work["start"], work["end"]) if 'end' in work else "not done, yet"
+                start = self._format_datetime(work["start"])
+                end = self._format_datetime(work["end"]) if 'end' in work else "on going"
+
+                self.tblWorks.setItem(index, 0, QTableWidgetItem(work["name"]))
+                self.tblWorks.setItem(index, 1, QTableWidgetItem(start))
+                self.tblWorks.setItem(index, 2, QTableWidgetItem(end))
+                self.tblWorks.setItem(index, 3, QTableWidgetItem(delta_str)) 
 
 
         
@@ -491,19 +521,48 @@ class MainForm(QMainWindow,Ui_MainForm):
 
         tree = []
 
+        self.treeWorks.clear()
+
         for work_name in keys:
-            rootname = ""
-            name = ""
-            depth = 0
-            for depth, n in enumerate(work_name.split(':')):
-                rootname = name
-                name = name + ":" + n if name != "" else n
-                depth = depth+1
+            
+            names = work_name.split(':')
+            if len(names) > 0:
+                prefixname = names[0]
+                typename = names[1] if len(names) >= 2 else ""
+                projectname = ':'.join(names[2:]) if len(names) >= 3 else ""
 
-                finds = [i for i, t in enumerate(tree) if t.text(0) == n]
+                roottree = list(filter(lambda t: t.text(0) == prefixname, tree))
+                if len(roottree) == 0:
+                    tree.append(QTreeWidgetItem([prefixname, prefixname]))
+                    prefixitem = tree[0]
+                else:
+                    prefixitem = roottree[0]
 
-                if len(finds) == 0:
-                    if depth == 1:
-                        tree.append(QTreeWidgetItem([n]))
+                if prefixitem:
+                    findtypechild = None
+                    for i in range(prefixitem.childCount()):
+                        typechild = prefixitem.child(i)
+
+                        if typechild.text(0) == typename:
+                            findtypechild = typechild
+                            break
+
+                    if findtypechild is None and typename != "":
+                        prefixitem.addChild(QTreeWidgetItem([typename, prefixname + ":" + typename]))
+                        findtypechild = prefixitem.child(prefixitem.childCount()-1)
+                    
+                    if findtypechild:
+                        findprojectchild = None
+                        for i in range(findtypechild.childCount()):
+                            projectchild = findtypechild.child(i)
+
+                            if projectchild.text(0) == projectname:
+                                findprojectchild = projectchild
+                                break
+
+                        if findprojectchild is None and projectname != "":
+                            findtypechild.addChild(QTreeWidgetItem([projectname, prefixname + ":" + typename + ":" + projectname]))
+                            findprojectchild = findtypechild.child(findtypechild.childCount()-1)
+
         
         self.treeWorks.addTopLevelItems(tree)
