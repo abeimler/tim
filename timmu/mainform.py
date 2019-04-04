@@ -1,8 +1,8 @@
 from PyQt5 import QtGui, QtCore
-from PyQt5.QtWidgets import QMainWindow, QTreeWidgetItem, QTableWidgetItem
+from PyQt5.QtWidgets import QMainWindow, QTreeWidgetItem, QTableWidgetItem, QMessageBox, QErrorMessage
 
 import re
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 import json
 
 from .tim.timscript import Tim
@@ -184,6 +184,7 @@ class MainForm(QMainWindow,Ui_MainWindow):
         name = self.timName()
         self.tim.update_map(name)
         self.updateCurrentSessionInfo()
+        self.updateEstimateProgress()
 
     def updateWork(self):
         self.currentProjectName = self.txtProject.currentText().lower()
@@ -200,24 +201,32 @@ class MainForm(QMainWindow,Ui_MainWindow):
             self.tim.hledger_save()
 
     def clickedStartStop(self):
-        if self.valid_time():
-            self.currentTimName = self.timName()
-            self.startStopWorkToggle()
-            self.saveTimeclock()
+        try:
+            if self.valid_time():
+                self.currentTimName = self.timName()
+                self.startStopWorkToggle()
+                self.saveTimeclock()
 
-            self.updateCurrentSessionInfo()
+                self.updateCurrentSessionInfo()
 
-            self.updateProjectTreeData()
-            self.updateProjectTableData()
+                self.updateProjectTreeData()
+                self.updateProjectTableData()
+        except RuntimeError as e:
+            error_dialog = QErrorMessage(self)
+            error_dialog.showMessage(str(e))
 
     def clickedBreak(self):
-        if self.valid_time():
-            self.currentTimName = self.timBreakName()
-            self.startStopWorkToggle()
-            self.saveTimeclock()
+        try:
+            if self.valid_time():
+                self.currentTimName = self.timBreakName()
+                self.startStopWorkToggle()
+                self.saveTimeclock()
 
-            self.updateProjectTreeData()
-            self.updateProjectTableData()
+                self.updateProjectTreeData()
+                self.updateProjectTableData()
+        except RuntimeError as e:
+            error_dialog = QErrorMessage(self)
+            error_dialog.showMessage(str(e))
     
 
 
@@ -295,9 +304,12 @@ class MainForm(QMainWindow,Ui_MainWindow):
         self.updateWork()
     
     def valid_time(self):
-        time = self.tim.parse_isotime(self.tim.to_datetime(self.txtAddTime.currentText().lower()))
-        current_time = self.tim.current_work_start_time()
-        return current_time is None or time >= current_time
+        try:
+            time = self.tim.parse_isotime(self.tim.to_datetime(self.txtAddTime.currentText().lower()))
+            current_time = self.tim.current_work_start_time()
+            return current_time is None or time >= current_time
+        except RuntimeError as e:
+            return False
     
     def timName(self):
         if self.currentProjectName == "":
@@ -371,7 +383,7 @@ class MainForm(QMainWindow,Ui_MainWindow):
                         self.spbEstimateValue.setValue(self.currentEstimate)
 
                         dt_estimate = timedelta(hours=hours, minutes=minutes, seconds=seconds)
-                        dt_time = self.tim.total_time(name)
+                        dt_time = self.tim.data_map[name]['delta']
 
                         if dt_time.total_seconds() > dt_estimate.total_seconds():
                             self.pgbProgress.setMaximum(dt_estimate.total_seconds())
@@ -382,7 +394,7 @@ class MainForm(QMainWindow,Ui_MainWindow):
             else:
                 self.currentEstimate = 0
                 self.spbEstimateValue.setValue(self.currentEstimate)
-                self.pgbProgress.setMaximum(100)
+                self.pgbProgress.setMaximum(0)
 
 
     def updateEstimateProgress(self):
@@ -390,9 +402,9 @@ class MainForm(QMainWindow,Ui_MainWindow):
         if name != "" and self.currentEstimate > 0:
             estimate_str = "00:00:00"
             if self.currentEstimateUnit == "hours":
-                estimate_str = '{:02}:{:02}:{:02}'.format(int(self.currentEstimate), int(0), int(0))
+                estimate_str = '{:04}:{:02}:{:02}'.format(int(self.currentEstimate), int(0), int(0))
             elif self.currentEstimateUnit == "minutes":
-                estimate_str = '{:02}:{:02}:{:02}'.format(int(0), int(self.currentEstimate), int(0))
+                estimate_str = '{:04}:{:02}:{:02}'.format(int(0), int(self.currentEstimate), int(0))
 
             if estimate_str:
                 estimate = estimate_str.split(':')
@@ -403,7 +415,7 @@ class MainForm(QMainWindow,Ui_MainWindow):
 
                     if self.currentEstimate != 0:
                         dt_estimate = timedelta(hours=hours, minutes=minutes, seconds=seconds)
-                        dt_time = self.tim.total_time(name)
+                        dt_time = self.tim.data_map[name]['delta']
 
                         if dt_time.total_seconds() > dt_estimate.total_seconds():
                             self.pgbProgress.setMaximum(dt_estimate.total_seconds())
@@ -415,7 +427,7 @@ class MainForm(QMainWindow,Ui_MainWindow):
                             return
 
         self.pgbProgress.setValue(0)   
-        self.pgbProgress.setMaximum(100)
+        self.pgbProgress.setMaximum(0)
 
     def saveEstimate(self):
         if self.currentEstimate != 0:
@@ -507,10 +519,10 @@ class MainForm(QMainWindow,Ui_MainWindow):
 
         return ret
 
-    def _format_datetime(self, at):
+    def _format_datetime(self, dt):
         self.date_format = "%d %b %Y %H:%M:%S";
         LOCAL_TIMEZONE = datetime.now().astimezone().tzinfo
-        return self.tim.parse_isotime(at).astimezone(LOCAL_TIMEZONE).strftime(self.date_format)
+        return self.tim.parse_isotime(dt).astimezone(LOCAL_TIMEZONE).strftime(self.date_format)
 
     def updateProjectTableData(self):
 
@@ -532,13 +544,13 @@ class MainForm(QMainWindow,Ui_MainWindow):
             end_max = max(works, key=lambda x: x['end'])['end']
             total_dura = work['delta_str']
 
-        self.tblWorks.setColumnCount(4)
         self.tblWorks.setHorizontalHeaderLabels([
             'Name', 
             'Start ({0})'.format(self._format_datetime(start_min)) if start_min else 'Start', 
             'End ({0})'.format(self._format_datetime(end_max)) if end_max else 'End', 
             'Duration ({0})'.format(total_dura) if total_dura else 'Duration'
         ])
+        self.tblWorks.setColumnCount(4)
 
         self.tblWorks.setRowCount(len(works))
         for index, work in enumerate(works):
@@ -547,11 +559,35 @@ class MainForm(QMainWindow,Ui_MainWindow):
                 start = self._format_datetime(work["start"])
                 end = self._format_datetime(work["end"]) if 'end' in work else "on going"
 
-                self.tblWorks.setItem(index, 0, QTableWidgetItem(work["name"]))
-                self.tblWorks.setItem(index, 1, QTableWidgetItem(start))
-                self.tblWorks.setItem(index, 2, QTableWidgetItem(end))
-                self.tblWorks.setItem(index, 3, QTableWidgetItem(delta_str)) 
+                start_time = self.tim.parse_isotime(work['start'])
+                end_time = self.tim.parse_isotime(work['end']) if 'end' in work else datetime.now(timezone.utc)
+                diff = end_time - start_time
 
+                nameItem = QTableWidgetItem(work["name"])
+                nameItem.setData(QtCore.Qt.UserRole, work["name"])
+                nameItem.setData(QtCore.Qt.EditRole, work["name"])
+                nameItem.setData(QtCore.Qt.DisplayRole, work["name"])
+
+                startItem = QTableWidgetItem(start)
+                startItem.setData(QtCore.Qt.UserRole, start_time)
+                startItem.setData(QtCore.Qt.EditRole, work["start"])
+                startItem.setData(QtCore.Qt.DisplayRole, start)
+
+                endItem = QTableWidgetItem(end)
+                endItem.setData(QtCore.Qt.UserRole, end_time)
+                endItem.setData(QtCore.Qt.EditRole, work["end"] if 'end' in work else "")
+                endItem.setData(QtCore.Qt.DisplayRole, end)
+
+                deltaItem = QTableWidgetItem(delta_str)
+                deltaItem.setData(QtCore.Qt.UserRole, diff)
+                deltaItem.setData(QtCore.Qt.DisplayRole, delta_str)
+
+                self.tblWorks.setItem(index, 0, nameItem)
+                self.tblWorks.setItem(index, 1, startItem)
+                self.tblWorks.setItem(index, 2, endItem)
+                self.tblWorks.setItem(index, 3, deltaItem) 
+        
+        self.tblWorks.resizeColumnsToContents()
 
         
 

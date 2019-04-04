@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>790</width>
+    <width>893</width>
     <height>622</height>
    </rect>
   </property>
@@ -41,9 +41,27 @@
     </item>
     <item row="16" column="1" colspan="2">
      <widget class="QTableWidget" name="tblWorks">
+      <property name="sizeAdjustPolicy">
+       <enum>QAbstractScrollArea::AdjustToContents</enum>
+      </property>
+      <property name="autoScrollMargin">
+       <number>16</number>
+      </property>
       <property name="editTriggers">
        <set>QAbstractItemView::NoEditTriggers</set>
       </property>
+      <property name="sortingEnabled">
+       <bool>true</bool>
+      </property>
+      <attribute name="horizontalHeaderCascadingSectionResizes">
+       <bool>false</bool>
+      </attribute>
+      <attribute name="horizontalHeaderStretchLastSection">
+       <bool>true</bool>
+      </attribute>
+      <attribute name="verticalHeaderStretchLastSection">
+       <bool>false</bool>
+      </attribute>
       <column>
        <property name="text">
         <string>Name</string>
@@ -99,14 +117,14 @@
         <item>
          <widget class="QLabel" name="lblCurrentSessionInfo">
           <property name="text">
-           <string>&lt;Current Session&gt;</string>
+           <string>--:--:--</string>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QLabel" name="lblCurrentSessionInfo2">
           <property name="text">
-           <string>&lt;Current Session 2&gt;</string>
+           <string>---</string>
           </property>
          </widget>
         </item>
@@ -124,7 +142,7 @@
         <item>
          <widget class="QLabel" name="lblCurrentSessionInfo3">
           <property name="text">
-           <string>&lt;Current Session 3&gt;</string>
+           <string>--:--:--</string>
           </property>
          </widget>
         </item>
@@ -140,7 +158,7 @@
          <bool>true</bool>
         </property>
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+         <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
@@ -160,6 +178,9 @@
         <property name="default">
          <bool>true</bool>
         </property>
+        <property name="flat">
+         <bool>false</bool>
+        </property>
        </widget>
       </item>
       <item>
@@ -168,7 +189,7 @@
          <bool>true</bool>
         </property>
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+         <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
@@ -210,14 +231,14 @@
       <item>
        <widget class="QLabel" name="lblLastSessionInfo">
         <property name="text">
-         <string>&lt;Last Session&gt;</string>
+         <string>---</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QLabel" name="lblLastSessionInfo2">
         <property name="text">
-         <string>&lt;Last Session2&gt;</string>
+         <string>---</string>
         </property>
        </widget>
       </item>
@@ -325,7 +346,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>790</width>
+     <width>893</width>
      <height>22</height>
     </rect>
    </property>

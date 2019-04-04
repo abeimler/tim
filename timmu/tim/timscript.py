@@ -330,11 +330,11 @@ class Tim(object):
         if mins == 0:
             return 'under 1 minute'
         elif mins < 59:
-            return self.strfdelta(timedelta, "{minutes} minutes")
+            return self.strfdelta(timedelta, "{minutes:02} minutes")
         elif mins < 1439:
-            return self.strfdelta(timedelta, "{hours} hours and {minutes} minutes")
+            return self.strfdelta(timedelta, "{hours:02} hours and {minutes:02} minutes")
         else:
-            return '{:02}:{:02} ({} days)'.format(int(hours), int(mins), timedelta.days)
+            return '{:04}:{:02} ({} days)'.format(int(hours), int(mins), timedelta.days)
 
     def strfdelta(self, tdelta, fmt):
         d = {"days": tdelta.days}
@@ -554,9 +554,9 @@ class Tim(object):
         if mins == 0:
             return 'under 1 minute'
         elif mins < 59:
-            return '%d minutes' % (mins)
+            return '%2d minutes' % (mins)
         elif mins < 1439:
-            return '%d hours and %d minutes' % (hours, rem_mins)
+            return '%5d hours and %2d minutes' % (hours, rem_mins)
         else:
             return "more than a day (%d hours)" % (hours)
    
