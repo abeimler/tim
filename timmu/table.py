@@ -54,6 +54,9 @@ class TimTableModel(QtCore.QAbstractTableModel):
                 return columns[rowcol]
 
         if orientation == QtCore.Qt.Vertical and role == QtCore.Qt.DisplayRole:
+            if rowcol < len(self.works):
+                if 'index' in self.works[rowcol]:
+                    return str(self.works[rowcol]['index']+1)
             return str(rowcol+1)
 
         return None
@@ -99,33 +102,59 @@ class TimTableModel(QtCore.QAbstractTableModel):
         return None
     
     def setData(self, index, value, role=QtCore.Qt.EditRole):
+        ret = False
         if role == QtCore.Qt.EditRole:
             i = index.row()
             j = index.column()
 
             if i < len(self.works):
                 index = i
-                work = self.works[i]
+                work = self.works[index]
                 if 'index' in self.works:
                     index = self.works['index']
                     work = self.tim.data['work'][index]
                 elif i < len(self.tim.data['work']):
                     index = i
-                    work = self.tim.data['work'][i]
+                    work = self.tim.data['work'][index]
 
                 if j == 0:
                     work['name'] = value
+                    ret = True
                 elif j == 1:
                     if self.tim.valid_engtime(value):
                         work['start'] = self.tim.parse_isotime_str(value)
+                        ret = True
                 elif j == 2:
                     if self.tim.valid_engtime(value):
                         work['end'] = self.tim.parse_isotime_str(value)
+                        ret = True
 
-                self.tim.set_work(index, work)
-                self.update(self.tim)
+                if ret:
+                    self.tim.set_work(index, work)
+                    self.update(self.tim)
 
-                self.dataChanged.emit(index, index)
+                    self.dataChanged.emit(index, index)
+
+        return ret
+
+    def removeRows(self, row, count, parent):
+        self.beginRemoveRows(parent, row, row+count-1)
+
+        ret = False
+        if row < len(self.works):
+            index = row
+            if 'index' in self.works:
+                index = self.works['index']
+            elif row < len(self.tim.data['work']):
+                index = row
+
+            ret = True
+            self.tim.remove_work(range(row, row+count))
+            self.update(self.tim)
+
+        self.endRemoveRows()
+
+        return ret
 
     def flags(self, index):
         flags = super(self.__class__, self).flags(index)

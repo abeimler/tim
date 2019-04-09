@@ -20,6 +20,8 @@ class MainForm(QMainWindow,Ui_MainWindow):
         self.OTHER_WORK = "work"
         self.BREAK = 'break'
 
+        self.last_selected_work = ""
+
         self.init()
         self.initSignals()
 
@@ -526,10 +528,11 @@ class MainForm(QMainWindow,Ui_MainWindow):
         return self.tim.parse_isotime(dt).astimezone(LOCAL_TIMEZONE).strftime(self.date_format)
 
     def updateProjectTableData(self):
-        selected_work = ""
+        selected_work = self.last_selected_work
         selected = self.treeWorks.selectedItems()
         if len(selected) > 0:
             selected_work = selected[0].text(1)
+            self.last_selected_work = selected_work
 
         model = TimTableModel(self)
         model.selected_work = selected_work

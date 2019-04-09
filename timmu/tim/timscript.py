@@ -236,7 +236,17 @@ class Tim(object):
             #self.data_map = self.gen_map(self.data)
             self.update_map_all(self.data['work'][index]['name'], True)
             self.store.dump(self.data)
-            
+    
+    def remove_work(self, index):
+        if index < len(self.data['work']):
+            if isinstance(index, list):
+                for i in index:
+                    self.data['work'].pop(i)
+            else:
+                self.data['work'].pop(index)
+
+            self.data_map = self.gen_map(self.data)
+            self.store.dump(self.data)
 
     def current_work(self):
         if (not self.is_working()):
