@@ -7,6 +7,7 @@ import json
 
 from .tim.timscript import Tim
 from .ui_mainwindow import Ui_MainWindow
+from .table import TimTableModel
 
 class MainForm(QMainWindow,Ui_MainWindow):    
     def __init__(self):     
@@ -525,68 +526,17 @@ class MainForm(QMainWindow,Ui_MainWindow):
         return self.tim.parse_isotime(dt).astimezone(LOCAL_TIMEZONE).strftime(self.date_format)
 
     def updateProjectTableData(self):
-
         selected_work = ""
         selected = self.treeWorks.selectedItems()
         if len(selected) > 0:
             selected_work = selected[0].text(1)
 
-        start_min = ""
-        end_max = ""
-        total_dura = ""
+        model = TimTableModel(self)
+        model.selected_work = selected_work
+        model.update(self.tim)
 
-        works = self.tim.data['work']
-        if selected_work and selected_work in self.tim.data_map:
-            work = self.tim.data_map[selected_work]
-            works = work['work']
+        self.tblWorks.setModel(model)
 
-            start_min = min(works, key=lambda x: x['start'])['start']
-            end_max = max(works, key=lambda x: x['end'])['end']
-            total_dura = work['delta_str']
-
-        self.tblWorks.setHorizontalHeaderLabels([
-            'Name', 
-            'Start ({0})'.format(self._format_datetime(start_min)) if start_min else 'Start', 
-            'End ({0})'.format(self._format_datetime(end_max)) if end_max else 'End', 
-            'Duration ({0})'.format(total_dura) if total_dura else 'Duration'
-        ])
-        self.tblWorks.setColumnCount(4)
-
-        self.tblWorks.setRowCount(len(works))
-        for index, work in enumerate(works):
-            if 'start' in work:
-                delta_str = self.tim.delta_str(work["start"], work["end"]) if 'end' in work else "not done, yet"
-                start = self._format_datetime(work["start"])
-                end = self._format_datetime(work["end"]) if 'end' in work else "on going"
-
-                start_time = self.tim.parse_isotime(work['start'])
-                end_time = self.tim.parse_isotime(work['end']) if 'end' in work else datetime.now(timezone.utc)
-                diff = end_time - start_time
-
-                nameItem = QTableWidgetItem(work["name"])
-                nameItem.setData(QtCore.Qt.UserRole, work["name"])
-                nameItem.setData(QtCore.Qt.EditRole, work["name"])
-                nameItem.setData(QtCore.Qt.DisplayRole, work["name"])
-
-                startItem = QTableWidgetItem(start)
-                startItem.setData(QtCore.Qt.UserRole, start_time)
-                startItem.setData(QtCore.Qt.EditRole, work["start"])
-                startItem.setData(QtCore.Qt.DisplayRole, start)
-
-                endItem = QTableWidgetItem(end)
-                endItem.setData(QtCore.Qt.UserRole, end_time)
-                endItem.setData(QtCore.Qt.EditRole, work["end"] if 'end' in work else "")
-                endItem.setData(QtCore.Qt.DisplayRole, end)
-
-                deltaItem = QTableWidgetItem(delta_str)
-                deltaItem.setData(QtCore.Qt.UserRole, diff)
-                deltaItem.setData(QtCore.Qt.DisplayRole, delta_str)
-
-                self.tblWorks.setItem(index, 0, nameItem)
-                self.tblWorks.setItem(index, 1, startItem)
-                self.tblWorks.setItem(index, 2, endItem)
-                self.tblWorks.setItem(index, 3, deltaItem) 
-        
         self.tblWorks.resizeColumnsToContents()
 
         

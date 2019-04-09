@@ -229,6 +229,15 @@ class Tim(object):
     def get_config_gen_timeclock(self):
         return self.get_config_value('gentimeclock', False)
 
+    def set_work(self, index, work):
+        if index < len(self.data['work']):
+            self.data['work'][index] = work
+
+            #self.data_map = self.gen_map(self.data)
+            self.update_map_all(self.data['work'][index]['name'], True)
+            self.store.dump(self.data)
+            
+
     def current_work(self):
         if (not self.is_working()):
             return ""
@@ -470,6 +479,12 @@ class Tim(object):
         dt = self.parse_engtime(timestr).strftime(self.date_format)
         return dt
 
+    def valid_engtime(self, timestr):
+        try:
+            return not parse_engtime(timestr) is None
+        except RuntimeError as e:
+            return False
+        return False
 
     def parse_engtime(self, timestr):
         if timestr is None or timestr is "":
